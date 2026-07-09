@@ -1,9 +1,8 @@
 "use client";
 
-import Script from "next/script";
 import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 
 declare global {
@@ -15,6 +14,8 @@ declare global {
 export function TelegramLoginWidget({ botUsername }: { botUsername?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const widgetRef = useRef<HTMLDivElement>(null);
+  const normalizedBotUsername = botUsername?.replace(/^@/, "");
   const nextParam = searchParams.get("next");
   const next = (nextParam?.startsWith("/") ? nextParam : "/dashboard") as Route;
 
@@ -44,6 +45,28 @@ export function TelegramLoginWidget({ botUsername }: { botUsername?: string }) {
     };
   }, [completeLogin]);
 
+  useEffect(() => {
+    if (!normalizedBotUsername || !widgetRef.current) return;
+
+    const container = widgetRef.current;
+    container.innerHTML = "";
+
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.async = true;
+    script.setAttribute("data-telegram-login", normalizedBotUsername);
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-userpic", "false");
+    script.setAttribute("data-radius", "16");
+    script.setAttribute("data-onauth", "onTelegramAuth(user)");
+
+    container.appendChild(script);
+
+    return () => {
+      container.innerHTML = "";
+    };
+  }, [normalizedBotUsername]);
+
   async function devLogin() {
     const response = await fetch("/api/auth/dev-login", { method: "POST" });
     if (response.ok) {
@@ -54,18 +77,11 @@ export function TelegramLoginWidget({ botUsername }: { botUsername?: string }) {
 
   return (
     <div className="space-y-4">
-      {botUsername ? (
-        <div className="flex justify-center rounded-2xl border border-white/10 bg-white/[.04] p-4">
-          <Script
-            src="https://telegram.org/js/telegram-widget.js?22"
-            strategy="afterInteractive"
-            data-telegram-login={botUsername}
-            data-size="large"
-            data-userpic="false"
-            data-radius="16"
-            data-onauth="onTelegramAuth(user)"
-          />
-        </div>
+      {normalizedBotUsername ? (
+        <div
+          ref={widgetRef}
+          className="flex min-h-12 justify-center rounded-2xl border border-white/10 bg-white/[.04] p-4"
+        />
       ) : (
         <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm text-amber-100">
           <code className="font-mono">NEXT_PUBLIC_TELEGRAM_BOT_USERNAME</code> не задан, Telegram widget скрыт.
