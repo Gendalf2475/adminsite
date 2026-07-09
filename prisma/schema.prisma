@@ -1,0 +1,355 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleKind {
+  OWNER
+  STAFF_RANK
+  DUTY
+  SYSTEM
+}
+
+enum StaffStatus {
+  ACTIVE
+  REMOVED
+  VACATION
+  PROBATION
+}
+
+enum ApplicationStatus {
+  NEW
+  IN_PROGRESS
+  REVIEW
+  ACCEPTED
+  REJECTED
+  NEEDS_INFO
+  REPORT_SENT
+}
+
+enum TicketSource {
+  TELEGRAM
+  DISCORD
+}
+
+enum TicketStatus {
+  NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_PLAYER
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketMessageAuthorType {
+  PLAYER
+  ADMIN
+  SYSTEM
+}
+
+enum TicketMessageVisibility {
+  PUBLIC
+  INTERNAL
+}
+
+enum CommandStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  EXPIRED
+}
+
+enum MinecraftServerStatus {
+  ONLINE
+  OFFLINE
+  DEGRADED
+  UNKNOWN
+}
+
+enum SyncStatus {
+  SUCCESS
+  FAILED
+  PARTIAL
+  RUNNING
+}
+
+model User {
+  id                 String               @id @default(cuid())
+  telegramId         String               @unique
+  telegramUsername   String?
+  displayName        String
+  avatarUrl          String?
+  active             Boolean              @default(true)
+  lastLoginAt        DateTime?
+  staffMemberId      String?              @unique
+  staffMember        StaffMember?         @relation(fields: [staffMemberId], references: [id], onDelete: SetNull)
+  roles              UserRole[]
+  applicationReviews Application[]        @relation("ApplicationReviewer")
+  assignedTickets    Ticket[]             @relation("TicketAssignee")
+  ticketMessages     TicketMessage[]      @relation("TicketMessageAuthor")
+  auditLogs          AuditLog[]
+  staffAssigned      StaffMember[]        @relation("StaffAssignedBy")
+  staffHistory       StaffHistory[]       @relation("StaffHistoryActor")
+  applicationNotes   ApplicationComment[] @relation("ApplicationCommentAuthor")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  key         String       @unique
+  name        String
+  kind        RoleKind
+  description String?
+  priority    Int          @default(0)
+  permissions Permission[]
+  users       UserRole[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String?
+  roles       Role[]
+  createdAt   DateTime @default(now())
+}
+
+model UserRole {
+  id        String    @id @default(cuid())
+  userId    String
+  roleId    String
+  startsAt  DateTime  @default(now())
+  expiresAt DateTime?
+  active    Boolean   @default(true)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, roleId])
+  @@index([userId, active])
+  @@index([roleId])
+}
+
+model StaffMember {
+  id                    String         @id @default(cuid())
+  username              String         @unique
+  uuid                  String?        @unique
+  telegramId            String?        @unique
+  discordUsername       String?
+  currentLuckPermsGroup String
+  pendingLuckPermsGroup String?
+  projectPosition       String
+  assignedAt            DateTime       @default(now())
+  assignedById          String?
+  status                StaffStatus    @default(PROBATION)
+  notes                 String?
+  user                  User?
+  assignedBy            User?          @relation("StaffAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  history               StaffHistory[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@index([status])
+  @@index([currentLuckPermsGroup])
+  @@index([projectPosition])
+}
+
+model StaffHistory {
+  id            String      @id @default(cuid())
+  staffMemberId String
+  actorUserId   String?
+  action        String
+  oldValue      Json?
+  newValue      Json?
+  metadata      Json?
+  staffMember   StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+  actor         User?       @relation("StaffHistoryActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+
+  @@index([staffMemberId, createdAt])
+}
+
+model Application {
+  id                 String                     @id @default(cuid())
+  googleSheetRowId   String?                    @unique
+  submittedAt        DateTime                   @default(now())
+  candidateUsername  String
+  telegramUsername   String?
+  telegramId         String?
+  discordUsername    String?
+  answers            Json
+  status             ApplicationStatus          @default(NEW)
+  assignedReviewerId String?
+  assignedReviewer   User?                      @relation("ApplicationReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
+  comments           ApplicationComment[]
+  statusHistory      ApplicationStatusHistory[]
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([status])
+  @@index([candidateUsername])
+}
+
+model ApplicationComment {
+  id            String      @id @default(cuid())
+  applicationId String
+  authorUserId  String?
+  body          String
+  internal      Boolean     @default(true)
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  author        User?       @relation("ApplicationCommentAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
+model ApplicationStatusHistory {
+  id            String            @id @default(cuid())
+  applicationId String
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  actorUserId   String?
+  note          String?
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime          @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
+model Ticket {
+  id               String             @id @default(cuid())
+  source           TicketSource
+  externalThreadId String
+  playerUsername   String?
+  externalUsername String
+  title            String
+  status           TicketStatus       @default(NEW)
+  priority         TicketPriority     @default(NORMAL)
+  assignedUserId   String?
+  assignedUser     User?              @relation("TicketAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  messages         TicketMessage[]
+  tags             TicketTag[]
+  assignments      TicketAssignment[]
+  metadata         Json?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  closedAt         DateTime?
+
+  @@unique([source, externalThreadId])
+  @@index([status])
+  @@index([priority])
+}
+
+model TicketMessage {
+  id           String                  @id @default(cuid())
+  ticketId     String
+  authorType   TicketMessageAuthorType
+  authorUserId String?
+  body         String
+  visibility   TicketMessageVisibility @default(PUBLIC)
+  attachments  Json?
+  externalId   String?
+  ticket       Ticket                  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorUser   User?                   @relation("TicketMessageAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  createdAt    DateTime                @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model TicketTag {
+  id        String   @id @default(cuid())
+  ticketId  String
+  name      String
+  color     String?
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([ticketId, name])
+}
+
+model TicketAssignment {
+  id             String   @id @default(cuid())
+  ticketId       String
+  assignedUserId String?
+  actorUserId    String?
+  note           String?
+  ticket         Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action      String
+  entityType  String
+  entityId    String?
+  oldValue    Json?
+  newValue    Json?
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model IntegrationSyncLog {
+  id          String     @id @default(cuid())
+  integration String
+  status      SyncStatus
+  message     String?
+  metadata    Json?
+  startedAt   DateTime   @default(now())
+  finishedAt  DateTime?
+
+  @@index([integration, startedAt])
+}
+
+model MinecraftServer {
+  id              String                @id @default(cuid())
+  name            String
+  host            String
+  status          MinecraftServerStatus @default(UNKNOWN)
+  playersOnline   Int                   @default(0)
+  playersMax      Int                   @default(0)
+  lastPingAt      DateTime?
+  lastPluginSync  DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+}
+
+model MinecraftCommandQueue {
+  id            String        @id @default(cuid())
+  type          String
+  payload       Json
+  status        CommandStatus @default(PENDING)
+  attempts      Int           @default(0)
+  result        Json?
+  errorMessage  String?
+  requestedById String?
+  staffMemberId String?
+  expiresAt     DateTime?
+  lockedAt      DateTime?
+  processedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([status, createdAt])
+  @@index([staffMemberId])
+}

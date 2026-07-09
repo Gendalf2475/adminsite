@@ -1,0 +1,61 @@
+export const PERMISSIONS = [
+  "staff.view",
+  "staff.manage",
+  "staff.change_luckperms_group",
+  "applications.view",
+  "applications.manage",
+  "applications.accept",
+  "applications.reject",
+  "applications.send_report",
+  "tickets.view",
+  "tickets.reply",
+  "tickets.close",
+  "tickets.assign",
+  "settings.view",
+  "settings.manage",
+  "audit.view",
+  "integrations.manage",
+] as const;
+
+export type PermissionKey = (typeof PERMISSIONS)[number];
+
+export const permissionLabels: Record<PermissionKey, string> = {
+  "staff.view": "Просмотр персонала",
+  "staff.manage": "Управление персоналом",
+  "staff.change_luckperms_group": "Смена групп LuckPerms",
+  "applications.view": "Просмотр заявок",
+  "applications.manage": "Обработка заявок",
+  "applications.accept": "Принятие кандидатов",
+  "applications.reject": "Отклонение кандидатов",
+  "applications.send_report": "Отправка отчетов",
+  "tickets.view": "Просмотр тикетов",
+  "tickets.reply": "Ответы в тикетах",
+  "tickets.close": "Закрытие тикетов",
+  "tickets.assign": "Назначение тикетов",
+  "settings.view": "Просмотр настроек",
+  "settings.manage": "Управление настройками",
+  "audit.view": "Просмотр audit log",
+  "integrations.manage": "Управление интеграциями",
+};
+
+export const rolePermissionDefaults: Record<string, PermissionKey[]> = {
+  owner: [...PERMISSIONS],
+  curator: PERMISSIONS.filter((permission) => permission !== "settings.manage"),
+  senior_admin: [
+    "staff.view",
+    "staff.manage",
+    "applications.view",
+    "applications.manage",
+    "applications.accept",
+    "applications.reject",
+    "tickets.view",
+    "tickets.reply",
+    "tickets.close",
+    "tickets.assign",
+    "audit.view",
+  ],
+  admin: ["staff.view", "applications.view", "applications.manage", "tickets.view", "tickets.reply", "tickets.assign"],
+  moderator: ["staff.view", "applications.view", "tickets.view", "tickets.reply"],
+  support: ["tickets.view", "tickets.reply", "tickets.close", "tickets.assign"],
+  viewer: ["staff.view", "applications.view", "tickets.view", "settings.view", "audit.view"],
+};
