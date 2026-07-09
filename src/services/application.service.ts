@@ -88,6 +88,6 @@ export async function assignApplication(id: string, reviewerId: string | null, a
 }
 
 export async function sendApplicationReport(id: string, actorUserId?: string | null) {
-  await addApplicationComment(id, "Mock report sent to candidate via configured contact channel.", actorUserId);
-  return updateApplicationStatus(id, ApplicationStatus.REPORT_SENT, actorUserId, "Report sent from admin panel.");
+  await addApplicationComment(id, "Отчет отмечен как отправленный через контактный канал кандидата.", actorUserId);
+  return updateApplicationStatus(id, ApplicationStatus.REPORT_SENT, actorUserId, "Report marked as sent from admin panel.");
 }

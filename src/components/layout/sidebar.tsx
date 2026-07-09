@@ -77,7 +77,7 @@ export function Sidebar() {
           <Activity size={14} />
           plugin sync
         </div>
-        <p className="mt-2 text-xs text-[var(--text-muted)]">Mock-контракты активны, очередь команд готова.</p>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">Production-контракты активны, очередь команд готова.</p>
       </div>
     </aside>
   );

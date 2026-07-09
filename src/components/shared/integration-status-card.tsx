@@ -3,9 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { IntegrationStatus } from "@/types/domain";
 import { formatDateTime } from "@/lib/utils";
 
-const variantByStatus: Record<IntegrationStatus["status"], "success" | "warning" | "danger" | "violet"> = {
+const variantByStatus: Record<IntegrationStatus["status"], "success" | "warning" | "danger"> = {
   online: "success",
-  mock: "violet",
   warning: "warning",
   offline: "danger",
 };
@@ -25,7 +24,9 @@ export function IntegrationStatusCard({ integration }: { integration: Integratio
           <p className="text-xs font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">Contract</p>
           <p className="mt-2 break-all font-mono text-sm text-white">{integration.contract}</p>
         </div>
-        <p className="text-sm text-[var(--text-muted)]">Последняя синхронизация: {formatDateTime(integration.lastSync)}</p>
+        <p className="text-sm text-[var(--text-muted)]">
+          Последняя синхронизация: {integration.lastSync.startsWith("1970-") ? "не было" : formatDateTime(integration.lastSync)}
+        </p>
       </CardContent>
     </Card>
   );

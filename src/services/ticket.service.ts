@@ -1,10 +1,17 @@
-import { TicketMessageAuthorType, TicketMessageVisibility, TicketPriority, TicketSource, TicketStatus } from "@prisma/client";
+import { TicketMessageAuthorType, TicketMessageVisibility, TicketPriority, TicketSource, TicketStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 
 export async function listTickets() {
   return prisma.ticket.findMany({
-    include: { assignedUser: true, tags: true, messages: { orderBy: { createdAt: "desc" }, take: 1 } },
+    include: {
+      assignedUser: true,
+      tags: true,
+      messages: {
+        include: { authorUser: true, outbound: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
     orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
   });
 }
@@ -15,7 +22,7 @@ export async function getTicket(id: string) {
     include: {
       assignedUser: true,
       tags: true,
-      messages: { include: { authorUser: true }, orderBy: { createdAt: "asc" } },
+      messages: { include: { authorUser: true, outbound: true }, orderBy: { createdAt: "asc" } },
       assignments: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
@@ -29,8 +36,11 @@ export async function createTicketFromExternal(input: {
   title: string;
   body: string;
   priority?: TicketPriority;
+  externalMessageId?: string;
+  attachments?: unknown;
+  metadata?: Record<string, unknown>;
 }) {
-  return prisma.ticket.upsert({
+  const ticket = await prisma.ticket.upsert({
     where: { source_externalThreadId: { source: input.source, externalThreadId: input.externalThreadId } },
     create: {
       source: input.source,
@@ -40,41 +50,70 @@ export async function createTicketFromExternal(input: {
       title: input.title,
       priority: input.priority ?? TicketPriority.NORMAL,
       status: TicketStatus.NEW,
-      messages: {
-        create: {
-          authorType: TicketMessageAuthorType.PLAYER,
-          body: input.body,
-          visibility: TicketMessageVisibility.PUBLIC,
-        },
-      },
+      metadata: input.metadata === undefined ? undefined : (JSON.parse(JSON.stringify(input.metadata)) as Prisma.InputJsonValue),
     },
     update: {
-      messages: {
-        create: {
-          authorType: TicketMessageAuthorType.PLAYER,
-          body: input.body,
-          visibility: TicketMessageVisibility.PUBLIC,
-        },
-      },
+      externalUsername: input.externalUsername,
+      playerUsername: input.playerUsername,
+      title: input.title,
       status: TicketStatus.OPEN,
+      closedAt: null,
+      metadata: input.metadata === undefined ? undefined : (JSON.parse(JSON.stringify(input.metadata)) as Prisma.InputJsonValue),
     },
   });
+
+  if (input.externalMessageId) {
+    const duplicate = await prisma.ticketMessage.findFirst({
+      where: { ticketId: ticket.id, externalId: input.externalMessageId },
+    });
+    if (duplicate) return getTicket(ticket.id);
+  }
+
+  await prisma.ticketMessage.create({
+    data: {
+      ticketId: ticket.id,
+      authorType: TicketMessageAuthorType.PLAYER,
+      body: input.body,
+      visibility: TicketMessageVisibility.PUBLIC,
+      externalId: input.externalMessageId,
+      attachments: input.attachments === undefined ? undefined : (JSON.parse(JSON.stringify(input.attachments)) as Prisma.InputJsonValue),
+    },
+  });
+
+  return getTicket(ticket.id);
 }
 
 export async function replyToTicket(id: string, body: string, actorUserId?: string | null, internal = false) {
-  const message = await prisma.ticketMessage.create({
-    data: {
-      ticketId: id,
-      authorType: TicketMessageAuthorType.ADMIN,
-      authorUserId: actorUserId,
-      body,
-      visibility: internal ? TicketMessageVisibility.INTERNAL : TicketMessageVisibility.PUBLIC,
-    },
-  });
+  const ticket = await prisma.ticket.findUniqueOrThrow({ where: { id } });
 
-  await prisma.ticket.update({
-    where: { id },
-    data: { status: internal ? undefined : TicketStatus.WAITING_PLAYER },
+  const message = await prisma.$transaction(async (tx) => {
+    const created = await tx.ticketMessage.create({
+      data: {
+        ticketId: id,
+        authorType: TicketMessageAuthorType.ADMIN,
+        authorUserId: actorUserId,
+        body,
+        visibility: internal ? TicketMessageVisibility.INTERNAL : TicketMessageVisibility.PUBLIC,
+      },
+    });
+
+    if (!internal) {
+      await tx.supportOutboundMessage.create({
+        data: {
+          ticketMessageId: created.id,
+          source: ticket.source,
+          externalThreadId: ticket.externalThreadId,
+          body,
+        },
+      });
+    }
+
+    await tx.ticket.update({
+      where: { id },
+      data: internal ? {} : { status: TicketStatus.WAITING_PLAYER },
+    });
+
+    return created;
   });
 
   await writeAuditLog({
@@ -131,4 +170,12 @@ export async function assignTicket(id: string, assignedUserId: string | null, ac
   });
 
   return ticket;
+}
+
+export async function listTicketAssignees() {
+  return prisma.user.findMany({
+    where: { active: true },
+    orderBy: { displayName: "asc" },
+    select: { id: true, displayName: true, telegramUsername: true },
+  });
 }

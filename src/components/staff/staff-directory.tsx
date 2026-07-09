@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, RefreshCw, SearchX } from "lucide-react";
+import { Plus, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { SearchInput } from "@/components/shared/search-input";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Input } from "@/components/ui/input";
 import type { StaffRow, StaffStatus } from "@/types/domain";
 import { formatDateTime } from "@/lib/utils";
 
@@ -27,6 +28,17 @@ export function StaffDirectory({ rows }: { rows: StaffRow[] }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
+  const [showCreate, setShowCreate] = useState(false);
+  const [createPending, setCreatePending] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    username: "",
+    uuid: "",
+    telegramId: "",
+    discordUsername: "",
+    currentLuckPermsGroup: "",
+    projectPosition: "",
+  });
 
   const filteredRows = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -49,7 +61,7 @@ export function StaffDirectory({ rows }: { rows: StaffRow[] }) {
       render: (row) => (
         <div>
           <p className="font-bold text-white">{row.username}</p>
-          <p className="text-xs text-[var(--text-faint)]">{row.uuid}</p>
+          <p className="text-xs text-[var(--text-faint)]">{row.uuid ?? "UUID не указан"}</p>
         </div>
       ),
     },
@@ -59,6 +71,34 @@ export function StaffDirectory({ rows }: { rows: StaffRow[] }) {
     { key: "assigned", header: "Назначен", render: (row) => formatDateTime(row.assignedAt) },
   ];
 
+  async function createStaff() {
+    if (!form.username.trim() || !form.currentLuckPermsGroup.trim() || !form.projectPosition.trim()) return;
+    setCreatePending(true);
+    setCreateError(null);
+    const response = await fetch("/api/staff", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        username: form.username.trim(),
+        uuid: form.uuid.trim() || undefined,
+        telegramId: form.telegramId.trim() || undefined,
+        discordUsername: form.discordUsername.trim() || undefined,
+        currentLuckPermsGroup: form.currentLuckPermsGroup.trim(),
+        projectPosition: form.projectPosition.trim(),
+      }),
+    });
+
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
+      setCreateError(result?.error ?? "Не удалось добавить сотрудника.");
+    } else {
+      setForm({ username: "", uuid: "", telegramId: "", discordUsername: "", currentLuckPermsGroup: "", projectPosition: "" });
+      setShowCreate(false);
+      router.refresh();
+    }
+    setCreatePending(false);
+  }
+
   return (
     <Card>
       <CardHeader className="flex-col items-stretch gap-4 xl:flex-row xl:items-center">
@@ -67,17 +107,32 @@ export function StaffDirectory({ rows }: { rows: StaffRow[] }) {
           <p className="mt-1 text-sm text-[var(--text-muted)]">Поиск по нику, UUID, группе, должности и Telegram ID.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline">
-            <RefreshCw size={16} />
-            Синхронизировать
-          </Button>
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => setShowCreate((current) => !current)}>
             <Plus size={16} />
             Добавить
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {showCreate ? (
+          <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4 md:grid-cols-2 xl:grid-cols-3">
+            <Input value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="Ник" />
+            <Input value={form.uuid} onChange={(event) => setForm((current) => ({ ...current, uuid: event.target.value }))} placeholder="UUID" />
+            <Input value={form.telegramId} onChange={(event) => setForm((current) => ({ ...current, telegramId: event.target.value }))} placeholder="Telegram ID" />
+            <Input value={form.discordUsername} onChange={(event) => setForm((current) => ({ ...current, discordUsername: event.target.value }))} placeholder="Discord username" />
+            <Input value={form.currentLuckPermsGroup} onChange={(event) => setForm((current) => ({ ...current, currentLuckPermsGroup: event.target.value }))} placeholder="LuckPerms group" />
+            <Input value={form.projectPosition} onChange={(event) => setForm((current) => ({ ...current, projectPosition: event.target.value }))} placeholder="Должность" />
+            {createError ? <p className="text-sm text-red-100 md:col-span-2 xl:col-span-3">{createError}</p> : null}
+            <div className="flex gap-2 md:col-span-2 xl:col-span-3">
+              <Button type="button" variant="primary" onClick={createStaff} disabled={createPending}>
+                {createPending ? "Сохранение..." : "Создать"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)} disabled={createPending}>
+                Отмена
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
           <SearchInput value={query} onChange={setQuery} placeholder="Ник, UUID, группа, Telegram ID" />
           <FilterBar value={status} options={filterOptions} onChange={setStatus} />

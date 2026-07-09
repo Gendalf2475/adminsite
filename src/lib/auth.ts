@@ -1,13 +1,30 @@
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { PERMISSIONS, type PermissionKey } from "@/config/permissions";
-import { demoUser } from "@/config/mock-data";
 import { prisma } from "@/lib/prisma";
 import { getEffectivePermissionsFromRoles, hasPermission } from "@/lib/permissions";
 import { getSessionUser } from "@/lib/session";
 import type { AuthUser, RoleSummary } from "@/types/domain";
 
 type DbUserWithRoles = Awaited<ReturnType<typeof loadUserByTelegramId>>;
+
+const demoUser: AuthUser = {
+  id: "demo-owner",
+  telegramId: "123456789",
+  telegramUsername: "owner",
+  displayName: "Owner MAJURE",
+  isDemo: true,
+  roles: [
+    {
+      id: "role-owner",
+      key: "owner",
+      name: "Owner",
+      kind: "OWNER",
+      permissions: [...PERMISSIONS],
+    },
+  ],
+  permissions: [...PERMISSIONS],
+};
 
 function toAuthUser(user: NonNullable<DbUserWithRoles>): AuthUser {
   const roles: RoleSummary[] = user.roles

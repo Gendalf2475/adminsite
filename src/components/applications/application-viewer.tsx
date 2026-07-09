@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, FileText, MessageSquare, RefreshCw, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { ApplicationRow, ApplicationStatus } from "@/types/domain";
 import { formatDateTime } from "@/lib/utils";
@@ -18,13 +20,58 @@ const actionButtons: Array<{ status: ApplicationStatus; label: string; icon: Rea
 ];
 
 export function ApplicationViewer({ rows }: { rows: ApplicationRow[] }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState(rows[0]?.id);
-  const [localStatuses, setLocalStatuses] = useState<Record<string, ApplicationStatus>>({});
+  const [pendingAction, setPendingAction] = useState<ApplicationStatus | "comment" | null>(null);
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const selected = useMemo(() => rows.find((row) => row.id === selectedId) ?? rows[0], [rows, selectedId]);
-  const selectedStatus = selected ? localStatuses[selected.id] ?? selected.status : "NEW";
+  const selectedStatus = selected ? selected.status : "NEW";
 
   if (!selected) return null;
+
+  async function updateStatus(status: ApplicationStatus) {
+    setPendingAction(status);
+    setError(null);
+    const response =
+      status === "REPORT_SENT"
+        ? await fetch(`/api/applications/${selected.id}/send-report`, { method: "POST" })
+        : await fetch(`/api/applications/${selected.id}/status`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ status }),
+          });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      setError(body?.error ?? "Не удалось обновить статус заявки.");
+    } else {
+      router.refresh();
+    }
+    setPendingAction(null);
+  }
+
+  async function submitComment() {
+    const body = comment.trim();
+    if (!body) return;
+    setPendingAction("comment");
+    setError(null);
+    const response = await fetch(`/api/applications/${selected.id}/comment`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body }),
+    });
+
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
+      setError(result?.error ?? "Не удалось добавить комментарий.");
+    } else {
+      setComment("");
+      router.refresh();
+    }
+    setPendingAction(null);
+  }
 
   return (
     <section className="grid gap-4 xl:grid-cols-[390px_1fr]">
@@ -37,7 +84,7 @@ export function ApplicationViewer({ rows }: { rows: ApplicationRow[] }) {
         </CardHeader>
         <CardContent className="space-y-2">
           {rows.map((application) => {
-            const status = localStatuses[application.id] ?? application.status;
+            const status = application.status;
             const active = application.id === selected.id;
             return (
               <button
@@ -84,14 +131,16 @@ export function ApplicationViewer({ rows }: { rows: ApplicationRow[] }) {
                   key={action.status}
                   type="button"
                   variant={action.variant}
-                  onClick={() => setLocalStatuses((current) => ({ ...current, [selected.id]: action.status }))}
+                  onClick={() => updateStatus(action.status)}
+                  disabled={pendingAction !== null}
                 >
                   <Icon size={16} />
-                  {action.label}
+                  {pendingAction === action.status ? "Сохранение..." : action.label}
                 </Button>
               );
             })}
           </div>
+          {error ? <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-3 text-sm text-red-100">{error}</div> : null}
 
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4">
@@ -143,6 +192,12 @@ export function ApplicationViewer({ rows }: { rows: ApplicationRow[] }) {
                   Комментариев пока нет.
                 </div>
               )}
+            </div>
+            <div className="mt-3 flex flex-col gap-3 md:flex-row">
+              <Input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Внутренний комментарий" />
+              <Button type="button" variant="outline" onClick={submitComment} disabled={pendingAction !== null || !comment.trim()}>
+                {pendingAction === "comment" ? "Сохранение..." : "Добавить"}
+              </Button>
             </div>
           </div>
         </CardContent>

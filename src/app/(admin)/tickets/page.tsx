@@ -1,8 +1,11 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { TicketChat } from "@/components/tickets/ticket-chat";
-import { ticketRows } from "@/config/mock-data";
+import { listTickets } from "@/services/ticket.service";
+import { mapTicketRow } from "@/services/view-models";
 
-export default function TicketsPage() {
+export default async function TicketsPage() {
+  const rows = (await listTickets()).map(mapTicketRow);
+
   return (
     <>
       <PageHeader
@@ -10,7 +13,7 @@ export default function TicketsPage() {
         title="Тикеты игроков"
         description="Единая очередь обращений из Telegram и Discord с публичными ответами, внутренними заметками, тегами и назначениями."
       />
-      <TicketChat rows={ticketRows} />
+      <TicketChat rows={rows} />
     </>
   );
 }

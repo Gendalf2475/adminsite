@@ -1,110 +1,160 @@
-# MAJURE Admin MVP
+# MAJURE Adminsite
 
-Админ-панель для Minecraft-проекта MAJURE: персонал, заявки, техподдержка, RBAC, audit log и mock-контракты интеграций.
+Production-ready admin panel for MAJURE: staff management, applications, support tickets, RBAC, audit log, Minecraft command queue, Telegram/Discord support intake, and Google Forms webhook intake.
 
 ## Stack
 
 - Next.js App Router + TypeScript
-- Tailwind CSS + локальные shadcn-style primitives
 - Prisma + PostgreSQL
-- Telegram Login Widget auth
-- REST API route handlers
+- Telegram Login Widget for admin auth
+- Telegram Bot API support webhook
+- Discord Gateway support worker
+- Docker Compose for VPS deployment
 - Vitest
 
-## Quick Start
-
-1. Установить зависимости:
+## Local Setup
 
 ```bash
 npm install
-```
-
-2. Создать `.env` из `.env.example` и заполнить минимум:
-
-```bash
-DATABASE_URL="postgresql://majure:majure@localhost:5432/majure_admin?schema=public"
-AUTH_SECRET="long-random-secret"
-TELEGRAM_BOT_TOKEN="123456:telegram-bot-token"
-NEXT_PUBLIC_TELEGRAM_BOT_USERNAME="MajureAdminBot"
-OWNER_TELEGRAM_ID="123456789"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-MINECRAFT_PLUGIN_API_TOKEN="replace-with-plugin-token"
-```
-
-3. Подготовить Prisma:
-
-```bash
+cp .env.example .env
 npm run db:generate
 npm run db:migrate
 npm run db:seed
-```
-
-4. Запустить dev server:
-
-```bash
 npm run dev
 ```
 
-В development доступна кнопка `Dev-вход Owner` на `/login`, чтобы проверить UI без Telegram.
+Required `.env` values:
 
-## API Contracts
+```env
+DATABASE_URL="postgresql://majure:majure@localhost:5432/majure_admin?schema=public"
+AUTH_SECRET="replace-with-a-long-random-secret"
+TELEGRAM_BOT_TOKEN="123456:telegram-bot-token"
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME="MajureAdminBot"
+TELEGRAM_WEBHOOK_SECRET="replace-with-telegram-webhook-secret"
+OWNER_TELEGRAM_ID="123456789"
+OWNER_TELEGRAM_USERNAME="owner"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+MINECRAFT_PLUGIN_API_TOKEN="replace-with-plugin-token"
+GOOGLE_FORMS_WEBHOOK_SECRET="replace-with-google-forms-webhook-secret"
+DISCORD_ENABLED="false"
+DISCORD_BOT_TOKEN=""
+SUPPORT_WORKER_POLL_INTERVAL_MS="5000"
+```
 
-Staff:
+In development only, `/login` shows `Dev-вход Owner`.
 
-- `GET /api/staff`
-- `GET /api/staff/:id`
-- `POST /api/staff`
-- `PATCH /api/staff/:id`
-- `POST /api/staff/:id/change-group`
-- `POST /api/staff/:id/remove`
-- `GET /api/staff/:id/history`
+## Docker VPS
 
-Applications:
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
 
-- `GET /api/applications`
-- `GET /api/applications/:id`
-- `POST /api/applications/sync`
-- `PATCH /api/applications/:id/status`
-- `POST /api/applications/:id/comment`
-- `POST /api/applications/:id/send-report`
-- `POST /api/applications/:id/assign`
+Compose starts:
 
-Tickets:
+- `postgres`
+- `migrate`: `prisma migrate deploy && prisma db seed`
+- `web`: Next standalone server on port `3000`
+- `support-worker`: Discord DM listener and Telegram/Discord outbound queue processor
 
-- `GET /api/tickets`
-- `GET /api/tickets/:id`
-- `POST /api/tickets/:id/reply`
-- `PATCH /api/tickets/:id/status`
-- `POST /api/tickets/:id/assign`
-- `POST /api/tickets/:id/close`
+For manual production maintenance:
 
-Integrations:
+```bash
+docker compose run --rm migrate
+docker compose logs -f web support-worker
+```
 
-- `POST /api/integrations/google-forms/sync`
-- `POST /api/integrations/telegram/webhook`
-- `POST /api/integrations/discord/webhook`
+## Webhooks
+
+Telegram support webhook:
+
+```text
+POST /api/integrations/telegram/webhook
+X-Telegram-Bot-Api-Secret-Token: $TELEGRAM_WEBHOOK_SECRET
+```
+
+Set it with Bot API:
+
+```bash
+curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -d "url=$NEXT_PUBLIC_APP_URL/api/integrations/telegram/webhook" \
+  -d "secret_token=$TELEGRAM_WEBHOOK_SECRET"
+```
+
+Google Forms Apps Script webhook:
+
+```text
+POST /api/integrations/google-forms/webhook
+Authorization: Bearer $GOOGLE_FORMS_WEBHOOK_SECRET
+```
+
+Payload:
+
+```json
+{
+  "rowId": "sheet-row-123",
+  "submittedAt": "2026-07-09T12:00:00.000Z",
+  "candidateUsername": "PlayerName",
+  "telegramUsername": "@player",
+  "telegramId": "123456",
+  "discordUsername": "player",
+  "answers": {
+    "Возраст": "18",
+    "Опыт": "Модерировал сервер"
+  }
+}
+```
+
+Minimal Apps Script example:
+
+```js
+function onFormSubmit(e) {
+  const values = e.namedValues;
+  UrlFetchApp.fetch("https://admin.example.com/api/integrations/google-forms/webhook", {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer GOOGLE_FORMS_WEBHOOK_SECRET" },
+    payload: JSON.stringify({
+      rowId: String(e.range.getRow()),
+      submittedAt: new Date().toISOString(),
+      candidateUsername: values["Ник"]?.[0],
+      telegramUsername: values["Telegram"]?.[0],
+      discordUsername: values["Discord"]?.[0],
+      answers: Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value[0]])),
+    }),
+  });
+}
+```
+
+Minecraft plugin endpoints:
+
+- `POST /api/integrations/minecraft/sync-staff`
 - `POST /api/integrations/minecraft/pull-commands`
 - `POST /api/integrations/minecraft/command-result`
-- `POST /api/integrations/minecraft/sync-staff`
 
-## Minecraft Queue
+All require:
 
-Сайт не выполняет LuckPerms напрямую. Например, смена группы:
+```text
+Authorization: Bearer $MINECRAFT_PLUGIN_API_TOKEN
+```
 
-1. `POST /api/staff/:id/change-group`
-2. Backend создает `MinecraftCommandQueue` со статусом `PENDING`
-3. Плагин забирает команды через `POST /api/integrations/minecraft/pull-commands`
-4. Плагин отправляет результат в `POST /api/integrations/minecraft/command-result`
-5. Backend обновляет статус команды и, при успехе, текущую группу сотрудника
+## Support Flow
 
-Плагин должен передавать `Authorization: Bearer $MINECRAFT_PLUGIN_API_TOKEN`.
+Players write to Telegram or Discord bots.
+
+- Telegram messages arrive via webhook and create/update `Ticket`.
+- Discord DMs are handled by `support-worker` through Discord Gateway and create/update `Ticket`.
+- Admin public replies from `/tickets` create `TicketMessage` plus `SupportOutboundMessage`.
+- `support-worker` sends outbound messages through Telegram Bot API or Discord DM.
+- Internal notes are saved only in adminsite.
+
+Outbound retries use `5s`, `30s`, `120s`, `300s` backoff and fail permanently after 8 attempts.
 
 ## Verification
 
 ```bash
-npx prisma validate
-npm run typecheck
-npm run lint
-npm run build
+env DATABASE_URL=postgresql://majure:majure@localhost:5432/majure_admin npx prisma validate
+npx tsc --noEmit --incremental false
 npm test
+npm run build
 ```

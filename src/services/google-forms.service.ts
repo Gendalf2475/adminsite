@@ -1,62 +1,77 @@
-import { ApplicationStatus, SyncStatus } from "@prisma/client";
+import { ApplicationStatus, SyncStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-const mockRows = [
-  {
-    googleSheetRowId: "mock-sheet-201",
-    candidateUsername: "QuartzVote",
-    telegramUsername: "@quartzvote",
-    discordUsername: "quartzvote",
-    answers: {
-      "Возраст": "18",
-      "Опыт": "Модерировал RP-сервер 8 месяцев",
-      "Почему MAJURE": "Хочу помогать с политическими конфликтами.",
-    },
-  },
-  {
-    googleSheetRowId: "mock-sheet-202",
-    candidateUsername: "IronDeputy",
-    telegramUsername: "@irondeputy",
-    discordUsername: "irondeputy",
-    answers: {
-      "Возраст": "19",
-      "Опыт": "Помогал с Discord-поддержкой",
-      "Почему MAJURE": "Нравится политическая модель сервера.",
-    },
-  },
-];
+export type GoogleFormsWebhookInput = {
+  rowId: string;
+  submittedAt?: string | Date;
+  candidateUsername: string;
+  telegramUsername?: string | null;
+  telegramId?: string | null;
+  discordUsername?: string | null;
+  answers: Record<string, unknown>;
+};
 
-export async function syncApplicationsFromGoogleSheetsMock() {
+export function verifyGoogleFormsWebhookToken(token: string | null) {
+  const expected = process.env.GOOGLE_FORMS_WEBHOOK_SECRET;
+  return Boolean(expected && token && token === expected);
+}
+
+export async function upsertApplicationFromGoogleForms(input: GoogleFormsWebhookInput) {
   const startedAt = new Date();
-  let imported = 0;
-
-  for (const row of mockRows) {
-    const existing = await prisma.application.findUnique({ where: { googleSheetRowId: row.googleSheetRowId } });
-    await prisma.application.upsert({
-      where: { googleSheetRowId: row.googleSheetRowId },
-      create: {
-        ...row,
-        status: ApplicationStatus.NEW,
-      },
-      update: {
-        telegramUsername: row.telegramUsername,
-        discordUsername: row.discordUsername,
-        answers: row.answers,
-      },
-    });
-    if (!existing) imported += 1;
+  const submittedAt = input.submittedAt ? new Date(input.submittedAt) : new Date();
+  if (Number.isNaN(submittedAt.getTime())) {
+    throw new Error("submittedAt must be a valid date when provided.");
   }
+
+  const existing = await prisma.application.findUnique({ where: { googleSheetRowId: input.rowId } });
+  const application = await prisma.application.upsert({
+    where: { googleSheetRowId: input.rowId },
+    create: {
+      googleSheetRowId: input.rowId,
+      submittedAt,
+      candidateUsername: input.candidateUsername,
+      telegramUsername: normalizeOptional(input.telegramUsername),
+      telegramId: normalizeOptional(input.telegramId),
+      discordUsername: normalizeOptional(input.discordUsername),
+      answers: toJson(input.answers),
+      status: ApplicationStatus.NEW,
+    },
+    update: {
+      submittedAt,
+      candidateUsername: input.candidateUsername,
+      telegramUsername: normalizeOptional(input.telegramUsername),
+      telegramId: normalizeOptional(input.telegramId),
+      discordUsername: normalizeOptional(input.discordUsername),
+      answers: toJson(input.answers),
+    },
+  });
 
   const log = await prisma.integrationSyncLog.create({
     data: {
       integration: "google_forms",
       status: SyncStatus.SUCCESS,
-      message: `Mock sync completed: ${imported} new applications.`,
-      metadata: { imported, total: mockRows.length },
+      message: existing ? "Google Forms row updated." : "Google Forms row imported.",
+      metadata: { rowId: input.rowId, applicationId: application.id, imported: !existing },
       startedAt,
       finishedAt: new Date(),
     },
   });
 
-  return { imported, total: mockRows.length, log };
+  return { application, imported: !existing, log };
+}
+
+export async function getLatestGoogleFormsSyncLog() {
+  return prisma.integrationSyncLog.findFirst({
+    where: { integration: "google_forms" },
+    orderBy: { startedAt: "desc" },
+  });
+}
+
+function normalizeOptional(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function toJson(value: Record<string, unknown>) {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }

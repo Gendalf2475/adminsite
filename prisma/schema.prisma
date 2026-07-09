@@ -84,6 +84,13 @@ enum SyncStatus {
   RUNNING
 }
 
+enum OutboundDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
 model User {
   id                 String               @id @default(cuid())
   telegramId         String               @unique
@@ -217,14 +224,14 @@ model ApplicationComment {
 }
 
 model ApplicationStatusHistory {
-  id            String            @id @default(cuid())
+  id            String             @id @default(cuid())
   applicationId String
   fromStatus    ApplicationStatus?
   toStatus      ApplicationStatus
   actorUserId   String?
   note          String?
-  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  createdAt     DateTime          @default(now())
+  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime           @default(now())
 
   @@index([applicationId, createdAt])
 }
@@ -254,19 +261,41 @@ model Ticket {
 }
 
 model TicketMessage {
-  id           String                  @id @default(cuid())
+  id           String                   @id @default(cuid())
   ticketId     String
   authorType   TicketMessageAuthorType
   authorUserId String?
   body         String
-  visibility   TicketMessageVisibility @default(PUBLIC)
+  visibility   TicketMessageVisibility  @default(PUBLIC)
   attachments  Json?
   externalId   String?
-  ticket       Ticket                  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  authorUser   User?                   @relation("TicketMessageAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
-  createdAt    DateTime                @default(now())
+  ticket       Ticket                   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorUser   User?                    @relation("TicketMessageAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  outbound     SupportOutboundMessage[]
+  createdAt    DateTime                 @default(now())
 
   @@index([ticketId, createdAt])
+}
+
+model SupportOutboundMessage {
+  id               String                 @id @default(cuid())
+  ticketMessageId  String
+  source           TicketSource
+  externalThreadId String
+  body             String
+  status           OutboundDeliveryStatus @default(PENDING)
+  attempts         Int                    @default(0)
+  nextAttemptAt    DateTime               @default(now())
+  lockedAt         DateTime?
+  sentAt           DateTime?
+  errorMessage     String?
+  ticketMessage    TicketMessage          @relation(fields: [ticketMessageId], references: [id], onDelete: Cascade)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([source, externalThreadId])
+  @@index([ticketMessageId])
 }
 
 model TicketTag {
@@ -322,16 +351,16 @@ model IntegrationSyncLog {
 }
 
 model MinecraftServer {
-  id              String                @id @default(cuid())
-  name            String
-  host            String
-  status          MinecraftServerStatus @default(UNKNOWN)
-  playersOnline   Int                   @default(0)
-  playersMax      Int                   @default(0)
-  lastPingAt      DateTime?
-  lastPluginSync  DateTime?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  id             String                @id @default(cuid())
+  name           String
+  host           String
+  status         MinecraftServerStatus @default(UNKNOWN)
+  playersOnline  Int                   @default(0)
+  playersMax     Int                   @default(0)
+  lastPingAt     DateTime?
+  lastPluginSync DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 }
 
 model MinecraftCommandQueue {

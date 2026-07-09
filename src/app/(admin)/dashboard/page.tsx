@@ -1,13 +1,28 @@
 import { Activity, ClipboardList, LifeBuoy, PlugZap, ShieldCheck, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { applicationRows, auditRows, integrationStatuses, staffRows, ticketRows } from "@/config/mock-data";
 import { formatDateTime } from "@/lib/utils";
+import { prisma } from "@/lib/prisma";
+import { listApplications } from "@/services/application.service";
+import { listStaff } from "@/services/staff.service";
+import { listTickets } from "@/services/ticket.service";
+import { buildIntegrationStatuses, mapApplicationRow, mapAuditLogRow, mapStaffRow, mapTicketRow } from "@/services/view-models";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [staffRecords, applicationRecords, ticketRecords, auditRecords, syncLogs] = await Promise.all([
+    listStaff(),
+    listApplications(),
+    listTickets(),
+    prisma.auditLog.findMany({ include: { actor: true }, orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.integrationSyncLog.findMany({ orderBy: { startedAt: "desc" }, take: 20 }),
+  ]);
+  const staffRows = staffRecords.map(mapStaffRow);
+  const applicationRows = applicationRecords.map(mapApplicationRow);
+  const ticketRows = ticketRecords.map(mapTicketRow);
+  const auditRows = auditRecords.map(mapAuditLogRow);
+  const integrationStatuses = buildIntegrationStatuses(syncLogs);
   const activeStaff = staffRows.filter((staff) => staff.status === "ACTIVE").length;
   const newApplications = applicationRows.filter((application) => application.status === "NEW").length;
   const inWorkApplications = applicationRows.filter((application) => ["IN_PROGRESS", "REVIEW"].includes(application.status)).length;
@@ -18,13 +33,7 @@ export default function DashboardPage() {
       <PageHeader
         eyebrow="Операционный центр"
         title="Dashboard"
-        description="Сводка по персоналу, заявкам, поддержке и интеграциям MAJURE. Данные сейчас используют mock-сервисы и готовые backend-контракты."
-        actions={
-          <>
-            <Button variant="outline">Синхронизировать</Button>
-            <Button variant="primary">Быстрое действие</Button>
-          </>
-        }
+        description="Сводка по персоналу, заявкам, поддержке и интеграциям MAJURE из production-БД."
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

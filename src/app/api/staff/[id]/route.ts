@@ -11,8 +11,8 @@ const updateStaffSchema = z.object({
   projectPosition: z.string().min(2).optional(),
   status: z.nativeEnum(StaffStatus).optional(),
   notes: z.string().optional(),
-  telegramId: z.string().optional(),
-  discordUsername: z.string().optional(),
+  telegramId: z.string().nullable().optional(),
+  discordUsername: z.string().nullable().optional(),
 });
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {

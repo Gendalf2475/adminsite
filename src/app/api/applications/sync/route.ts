@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { requireApiPermission } from "@/lib/auth";
-import { syncApplicationsFromGoogleSheetsMock } from "@/services/google-forms.service";
+import { getLatestGoogleFormsSyncLog } from "@/services/google-forms.service";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   const guard = await requireApiPermission("applications.manage");
   if (!guard.ok) return guard.response;
-  return NextResponse.json({ data: await syncApplicationsFromGoogleSheetsMock() });
+  return NextResponse.json(
+    {
+      error: "Pull sync is disabled. Configure Apps Script to POST /api/integrations/google-forms/webhook.",
+      latestSync: await getLatestGoogleFormsSyncLog(),
+    },
+    { status: 410 },
+  );
 }

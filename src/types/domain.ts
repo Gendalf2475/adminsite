@@ -6,6 +6,7 @@ export type TicketStatus = "NEW" | "OPEN" | "IN_PROGRESS" | "WAITING_PLAYER" | "
 export type TicketPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 export type TicketSource = "TELEGRAM" | "DISCORD";
 export type CommandStatus = "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED" | "EXPIRED";
+export type OutboundDeliveryStatus = "PENDING" | "PROCESSING" | "SENT" | "FAILED";
 
 export type RoleSummary = {
   id: string;
@@ -29,9 +30,9 @@ export type AuthUser = {
 export type StaffRow = {
   id: string;
   username: string;
-  uuid: string;
-  telegramId?: string;
-  discordUsername?: string;
+  uuid?: string | null;
+  telegramId?: string | null;
+  discordUsername?: string | null;
   currentLuckPermsGroup: string;
   pendingLuckPermsGroup?: string | null;
   projectPosition: string;
@@ -43,13 +44,13 @@ export type StaffRow = {
 
 export type ApplicationRow = {
   id: string;
-  googleSheetRowId: string;
+  googleSheetRowId?: string | null;
   submittedAt: string;
   candidateUsername: string;
-  telegramUsername?: string;
-  discordUsername?: string;
+  telegramUsername?: string | null;
+  discordUsername?: string | null;
   status: ApplicationStatus;
-  assignedReviewer?: string;
+  assignedReviewer?: string | null;
   answers: Record<string, string>;
   comments: Array<{ id: string; author: string; body: string; createdAt: string }>;
 };
@@ -73,6 +74,8 @@ export type TicketRow = {
     body: string;
     visibility: "PUBLIC" | "INTERNAL";
     createdAt: string;
+    deliveryStatus?: OutboundDeliveryStatus;
+    deliveryError?: string | null;
   }>;
 };
 
@@ -90,7 +93,7 @@ export type IntegrationStatus = {
   id: string;
   name: string;
   description: string;
-  status: "online" | "mock" | "warning" | "offline";
+  status: "online" | "warning" | "offline";
   lastSync: string;
   contract: string;
 };

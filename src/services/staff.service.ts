@@ -1,4 +1,4 @@
-import { StaffStatus } from "@prisma/client";
+import { StaffStatus, SyncStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { queueLuckPermsGroupChange } from "@/services/luckperms.service";
@@ -50,7 +50,11 @@ export async function createStaffMember(input: {
   return staff;
 }
 
-export async function updateStaffMember(id: string, input: Partial<{ projectPosition: string; status: StaffStatus; notes: string; telegramId: string; discordUsername: string }>, actorUserId?: string | null) {
+export async function updateStaffMember(
+  id: string,
+  input: Partial<{ projectPosition: string; status: StaffStatus; notes: string; telegramId: string | null; discordUsername: string | null }>,
+  actorUserId?: string | null,
+) {
   const before = await prisma.staffMember.findUniqueOrThrow({ where: { id } });
   const staff = await prisma.staffMember.update({
     where: { id },
@@ -116,4 +120,75 @@ export async function changeStaffLuckPermsGroup(id: string, group: string, actor
   });
 
   return { staff, command };
+}
+
+export type MinecraftStaffSyncInput = {
+  username: string;
+  uuid?: string | null;
+  telegramId?: string | null;
+  discordUsername?: string | null;
+  currentLuckPermsGroup: string;
+  projectPosition?: string | null;
+  status?: StaffStatus | null;
+};
+
+export async function syncStaffFromMinecraft(input: { staff: MinecraftStaffSyncInput[]; serverName?: string | null }) {
+  const startedAt = new Date();
+  let created = 0;
+  let updated = 0;
+
+  for (const row of input.staff) {
+    const before = await prisma.staffMember.findUnique({ where: { username: row.username } });
+    const staff = await prisma.staffMember.upsert({
+      where: { username: row.username },
+      create: {
+        username: row.username,
+        uuid: normalizeNullable(row.uuid),
+        telegramId: normalizeNullable(row.telegramId),
+        discordUsername: normalizeNullable(row.discordUsername),
+        currentLuckPermsGroup: row.currentLuckPermsGroup,
+        projectPosition: normalizeNullable(row.projectPosition) ?? row.currentLuckPermsGroup,
+        status: row.status ?? StaffStatus.ACTIVE,
+      },
+      update: {
+        uuid: normalizeNullable(row.uuid),
+        telegramId: normalizeNullable(row.telegramId),
+        discordUsername: normalizeNullable(row.discordUsername),
+        currentLuckPermsGroup: row.currentLuckPermsGroup,
+        projectPosition: normalizeNullable(row.projectPosition) ?? undefined,
+        status: row.status ?? undefined,
+      },
+    });
+
+    if (before) updated += 1;
+    else created += 1;
+
+    await prisma.staffHistory.create({
+      data: {
+        staffMemberId: staff.id,
+        action: before ? "staff.minecraft_sync.updated" : "staff.minecraft_sync.created",
+        oldValue: before ?? undefined,
+        newValue: staff,
+        metadata: { serverName: input.serverName ?? null },
+      },
+    });
+  }
+
+  const log = await prisma.integrationSyncLog.create({
+    data: {
+      integration: "minecraft_staff",
+      status: SyncStatus.SUCCESS,
+      message: `Minecraft staff sync completed: ${created} created, ${updated} updated.`,
+      metadata: { created, updated, total: input.staff.length, serverName: input.serverName ?? null },
+      startedAt,
+      finishedAt: new Date(),
+    },
+  });
+
+  return { created, updated, total: input.staff.length, log };
+}
+
+function normalizeNullable(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }

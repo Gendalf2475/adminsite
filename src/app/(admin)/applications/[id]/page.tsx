@@ -1,14 +1,17 @@
 import { notFound } from "next/navigation";
 import { ApplicationViewer } from "@/components/applications/application-viewer";
 import { PageHeader } from "@/components/layout/page-header";
-import { applicationRows } from "@/config/mock-data";
+import { getApplication, listApplications } from "@/services/application.service";
+import { mapApplicationRow } from "@/services/view-models";
 
 export default async function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const selected = applicationRows.find((row) => row.id === id);
-  if (!selected) notFound();
+  const [selectedRecord, applicationRecords] = await Promise.all([getApplication(id), listApplications()]);
+  if (!selectedRecord) notFound();
 
-  const ordered = [selected, ...applicationRows.filter((row) => row.id !== id)];
+  const selected = mapApplicationRow(selectedRecord);
+  const rows = applicationRecords.map(mapApplicationRow);
+  const ordered = [selected, ...rows.filter((row) => row.id !== id)];
   return (
     <>
       <PageHeader

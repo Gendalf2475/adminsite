@@ -1,8 +1,11 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { StaffDirectory } from "@/components/staff/staff-directory";
-import { staffRows } from "@/config/mock-data";
+import { listStaff } from "@/services/staff.service";
+import { mapStaffRow } from "@/services/view-models";
 
-export default function StaffPage() {
+export default async function StaffPage() {
+  const rows = (await listStaff()).map(mapStaffRow);
+
   return (
     <>
       <PageHeader
@@ -10,7 +13,7 @@ export default function StaffPage() {
         title="Управление составом"
         description="Сотрудники, их роли на проекте, группы LuckPerms, статусы и будущая синхронизация с Minecraft-плагином."
       />
-      <StaffDirectory rows={staffRows} />
+      <StaffDirectory rows={rows} />
     </>
   );
 }

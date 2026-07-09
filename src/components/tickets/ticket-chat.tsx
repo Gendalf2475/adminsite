@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MessageCircle, Plus, Send, Tag } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { MessageCircle, Send, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,33 +12,37 @@ import { formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export function TicketChat({ rows }: { rows: TicketRow[] }) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState(rows[0]?.id);
   const [draft, setDraft] = useState("");
-  const [localReplies, setLocalReplies] = useState<Record<string, TicketRow["messages"]>>({});
+  const [pending, setPending] = useState<"public" | "internal" | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const selected = useMemo(() => rows.find((row) => row.id === selectedId) ?? rows[0], [rows, selectedId]);
 
   if (!selected) return null;
 
-  const messages = [...selected.messages, ...(localReplies[selected.id] ?? [])];
+  const messages = selected.messages;
 
-  function sendReply(internal = false) {
+  async function sendReply(internal = false) {
     const body = draft.trim();
     if (!body) return;
-    setLocalReplies((current) => ({
-      ...current,
-      [selected.id]: [
-        ...(current[selected.id] ?? []),
-        {
-          id: `local-${Date.now()}`,
-          authorType: "ADMIN",
-          authorName: "Owner MAJURE",
-          body,
-          visibility: internal ? "INTERNAL" : "PUBLIC",
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    }));
-    setDraft("");
+    setPending(internal ? "internal" : "public");
+    setError(null);
+
+    const response = await fetch(`/api/tickets/${selected.id}/reply`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body, internal }),
+    });
+
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
+      setError(result?.error ?? "Не удалось отправить ответ.");
+    } else {
+      setDraft("");
+      router.refresh();
+    }
+    setPending(null);
   }
 
   return (
@@ -114,10 +119,6 @@ export function TicketChat({ rows }: { rows: TicketRow[] }) {
                 {tag}
               </span>
             ))}
-            <Button variant="ghost" size="sm">
-              <Plus size={14} />
-              тег
-            </Button>
           </div>
 
           <div className="min-h-[360px] space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
@@ -138,6 +139,12 @@ export function TicketChat({ rows }: { rows: TicketRow[] }) {
                       {message.authorName} · {message.visibility === "INTERNAL" ? "internal" : "public"}
                     </div>
                     <p className="text-sm">{message.body}</p>
+                    {message.deliveryStatus ? (
+                      <p className="mt-2 text-xs font-bold uppercase tracking-[.12em] text-[var(--text-faint)]">
+                        delivery: {message.deliveryStatus}
+                        {message.deliveryError ? ` · ${message.deliveryError}` : ""}
+                      </p>
+                    ) : null}
                     <p className="mt-2 text-xs text-[var(--text-faint)]">{formatDateTime(message.createdAt)}</p>
                   </div>
                 </div>
@@ -145,14 +152,16 @@ export function TicketChat({ rows }: { rows: TicketRow[] }) {
             })}
           </div>
 
+          {error ? <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-3 text-sm text-red-100">{error}</div> : null}
+
           <div className="flex flex-col gap-3 md:flex-row">
             <Input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ответ игроку или внутренняя заметка" />
-            <Button type="button" variant="outline" onClick={() => sendReply(true)}>
-              Внутренняя
+            <Button type="button" variant="outline" onClick={() => sendReply(true)} disabled={pending !== null || !draft.trim()}>
+              {pending === "internal" ? "Сохранение..." : "Внутренняя"}
             </Button>
-            <Button type="button" variant="primary" onClick={() => sendReply(false)}>
+            <Button type="button" variant="primary" onClick={() => sendReply(false)} disabled={pending !== null || !draft.trim()}>
               <Send size={16} />
-              Ответить
+              {pending === "public" ? "Отправка..." : "Ответить"}
             </Button>
           </div>
         </CardContent>

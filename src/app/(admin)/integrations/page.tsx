@@ -1,22 +1,22 @@
-import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { IntegrationStatusCard } from "@/components/shared/integration-status-card";
-import { integrationStatuses } from "@/config/mock-data";
+import { prisma } from "@/lib/prisma";
+import { buildIntegrationStatuses } from "@/services/view-models";
 
-export default function IntegrationsPage() {
+export default async function IntegrationsPage() {
+  const integrationStatuses = buildIntegrationStatuses(
+    await prisma.integrationSyncLog.findMany({
+      orderBy: { startedAt: "desc" },
+      take: 50,
+    }),
+  );
+
   return (
     <>
       <PageHeader
         eyebrow="Интеграции"
         title="Контракты внешних систем"
-        description="Mock-интеграции готовы к замене на реальные клиенты: Minecraft Plugin API, LuckPerms, Google Sheets, Telegram и Discord."
-        actions={
-          <Button variant="outline">
-            <RefreshCw size={16} />
-            Проверить статусы
-          </Button>
-        }
+        description="Состояние production-интеграций: Minecraft Plugin API, Google Forms webhook, Telegram и Discord support worker."
       />
       <section className="grid gap-4 xl:grid-cols-2">
         {integrationStatuses.map((integration) => (

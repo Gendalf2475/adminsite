@@ -6,13 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { StaffCard } from "@/components/staff/staff-card";
-import { staffRows } from "@/config/mock-data";
+import { StaffActions } from "@/components/staff/staff-actions";
 import { formatDateTime } from "@/lib/utils";
+import { getStaffMember } from "@/services/staff.service";
+import { mapStaffRow } from "@/services/view-models";
 
 export default async function StaffDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const staff = staffRows.find((row) => row.id === id);
-  if (!staff) notFound();
+  const staffRecord = await getStaffMember(id);
+  if (!staffRecord) notFound();
+  const staff = mapStaffRow(staffRecord);
 
   return (
     <>
@@ -39,7 +42,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4">
                 <p className="text-xs font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">UUID</p>
-                <p className="mt-2 break-all text-sm font-bold text-white">{staff.uuid}</p>
+                <p className="mt-2 break-all text-sm font-bold text-white">{staff.uuid ?? "Не указан"}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4">
                 <p className="text-xs font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">Назначил</p>
@@ -61,22 +64,27 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
               </p>
             </div>
 
+            <StaffActions staff={staff} />
+
             <div className="space-y-3">
-              {[
-                { action: "staff.created", at: staff.assignedAt, text: `Назначен на должность: ${staff.projectPosition}` },
-                { action: "staff.sync.mock", at: "2026-07-09T10:35:00.000Z", text: `LuckPerms group: ${staff.currentLuckPermsGroup}` },
-              ].map((event) => (
-                <div key={`${event.action}-${event.at}`} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4">
+              {staffRecord.history.length > 0 ? (
+                staffRecord.history.map((event) => (
+                  <div key={event.id} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4">
                   <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/10 text-fuchsia-100">
                     <Clock size={15} />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-white">{event.action}</p>
-                    <p className="mt-1 text-sm text-[var(--text-muted)]">{event.text}</p>
-                    <p className="mt-1 text-xs text-[var(--text-faint)]">{formatDateTime(event.at)}</p>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">Изменение сохранено в истории сотрудника.</p>
+                    <p className="mt-1 text-xs text-[var(--text-faint)]">{formatDateTime(event.createdAt.toISOString())}</p>
                   </div>
                 </div>
-              ))}
+                ))
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4 text-sm text-[var(--text-muted)]">
+                  Истории изменений пока нет.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
