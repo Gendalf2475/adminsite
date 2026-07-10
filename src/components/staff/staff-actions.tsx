@@ -8,8 +8,17 @@ import { Input } from "@/components/ui/input";
 import type { StaffRow, StaffStatus } from "@/types/domain";
 
 const statuses: StaffStatus[] = ["ACTIVE", "PROBATION", "VACATION", "REMOVED"];
+const selectClassName =
+  "h-10 w-full rounded-full border border-white/15 bg-white/[.07] px-4 text-sm text-white outline-none transition focus:border-fuchsia-300/50 focus:ring-4 focus:ring-fuchsia-400/10";
 
-export function StaffActions({ staff, luckPermsReady }: { staff: StaffRow; luckPermsReady: boolean }) {
+function resolveInitialGroup(staff: StaffRow, groups: string[]) {
+  const pending = staff.pendingLuckPermsGroup ?? "";
+  if (groups.includes(pending)) return pending;
+  if (groups.includes(staff.currentLuckPermsGroup)) return staff.currentLuckPermsGroup;
+  return groups[0] ?? "";
+}
+
+export function StaffActions({ staff, luckPermsReady, luckPermsGroups }: { staff: StaffRow; luckPermsReady: boolean; luckPermsGroups: string[] }) {
   const router = useRouter();
   const [form, setForm] = useState({
     projectPosition: staff.projectPosition,
@@ -18,7 +27,7 @@ export function StaffActions({ staff, luckPermsReady }: { staff: StaffRow; luckP
     discordUsername: staff.discordUsername ?? "",
     notes: staff.notes ?? "",
   });
-  const [group, setGroup] = useState(staff.pendingLuckPermsGroup ?? staff.currentLuckPermsGroup);
+  const [group, setGroup] = useState(resolveInitialGroup(staff, luckPermsGroups));
   const [pending, setPending] = useState<"save" | "group" | "remove" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,7 +91,7 @@ export function StaffActions({ staff, luckPermsReady }: { staff: StaffRow; luckP
         <select
           value={form.status}
           onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as StaffStatus }))}
-          className="h-10 w-full rounded-full border border-white/15 bg-white/[.07] px-4 text-sm text-white outline-none transition focus:border-fuchsia-300/50 focus:ring-4 focus:ring-fuchsia-400/10"
+          className={selectClassName}
         >
           {statuses.map((status) => (
             <option key={status} value={status} className="bg-[#130d23] text-white">
@@ -100,7 +109,18 @@ export function StaffActions({ staff, luckPermsReady }: { staff: StaffRow; luckP
       </div>
 
       <div className="flex flex-col gap-3 md:flex-row">
-        <Input value={group} onChange={(event) => setGroup(event.target.value)} placeholder="Новая LuckPerms group" disabled={!luckPermsReady} />
+        <select value={group} onChange={(event) => setGroup(event.target.value)} className={selectClassName} disabled={!luckPermsReady}>
+          {luckPermsGroups.length === 0 ? (
+            <option value="" className="bg-[#130d23] text-white">
+              Нет настроенных групп
+            </option>
+          ) : null}
+          {luckPermsGroups.map((option) => (
+            <option key={option} value={option} className="bg-[#130d23] text-white">
+              {option}
+            </option>
+          ))}
+        </select>
         <Button
           type="button"
           variant="outline"

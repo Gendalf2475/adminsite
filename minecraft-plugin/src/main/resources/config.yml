@@ -1,0 +1,13 @@
+adminBaseUrl: "http://localhost:3000"
+apiToken: "replace-with-plugin-token"
+serverName: "main"
+
+staffGroups:
+  - owner
+  - admin
+  - moderator
+  - helper
+
+pollIntervalSeconds: 10
+syncIntervalSeconds: 300
+requestTimeoutSeconds: 10

@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -e
+
+if command -v gradle >/dev/null 2>&1; then
+  exec gradle "$@"
+fi
+
+echo "Gradle is required to build this plugin. Install Gradle or generate a standard Gradle wrapper, then run ./gradlew build again." >&2
+exit 127

@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { StaffCard } from "@/components/staff/staff-card";
 import { StaffActions } from "@/components/staff/staff-actions";
 import { formatDateTime } from "@/lib/utils";
+import { getConfiguredLuckPermsStaffGroups, isLuckPermsIntegrationConfigured } from "@/services/luckperms.service";
 import { getStaffMember } from "@/services/staff.service";
 import { mapStaffRow } from "@/services/view-models";
 
@@ -16,7 +17,8 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
   const staffRecord = await getStaffMember(id);
   if (!staffRecord) notFound();
   const staff = mapStaffRow(staffRecord);
-  const luckPermsReady = Boolean(process.env.MINECRAFT_PLUGIN_API_TOKEN);
+  const luckPermsGroups = getConfiguredLuckPermsStaffGroups();
+  const luckPermsReady = isLuckPermsIntegrationConfigured();
 
   return (
     <>
@@ -65,7 +67,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
               </p>
             </div>
 
-            <StaffActions staff={staff} luckPermsReady={luckPermsReady} />
+            <StaffActions staff={staff} luckPermsReady={luckPermsReady} luckPermsGroups={luckPermsGroups} />
 
             <div className="space-y-3">
               {staffRecord.history.length > 0 ? (

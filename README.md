@@ -35,6 +35,7 @@ OWNER_TELEGRAM_ID="123456789"
 OWNER_TELEGRAM_USERNAME="owner"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 MINECRAFT_PLUGIN_API_TOKEN="replace-with-plugin-token"
+LUCKPERMS_STAFF_GROUPS="owner,admin,moderator,helper"
 GOOGLE_FORMS_WEBHOOK_SECRET="replace-with-google-forms-webhook-secret"
 DISCORD_ENABLED="false"
 DISCORD_BOT_TOKEN=""
@@ -137,6 +138,17 @@ All require:
 ```text
 Authorization: Bearer $MINECRAFT_PLUGIN_API_TOKEN
 ```
+
+`LUCKPERMS_STAFF_GROUPS` is the site-side allowlist for the rank dropdown and server-side validation. Keep it aligned with the Minecraft plugin `staffGroups` config.
+
+Minecraft plugin build:
+
+```bash
+cd minecraft-plugin
+./gradlew build
+```
+
+Install `build/libs/MajureLuckPermsBridge-0.1.0.jar` on the Paper server with LuckPerms installed, then set the generated plugin `config.yml` `apiToken` to the same value as `MINECRAFT_PLUGIN_API_TOKEN`.
 
 ## Support Flow
 

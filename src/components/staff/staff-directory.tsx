@@ -24,7 +24,10 @@ const filterOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: "REMOVED", label: "Снятые" },
 ];
 
-export function StaffDirectory({ rows, luckPermsReady }: { rows: StaffRow[]; luckPermsReady: boolean }) {
+const selectClassName =
+  "h-10 w-full rounded-full border border-white/15 bg-white/[.07] px-4 text-sm text-white outline-none transition focus:border-fuchsia-300/50 focus:ring-4 focus:ring-fuchsia-400/10";
+
+export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows: StaffRow[]; luckPermsReady: boolean; luckPermsGroups: string[] }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
@@ -36,7 +39,7 @@ export function StaffDirectory({ rows, luckPermsReady }: { rows: StaffRow[]; luc
     uuid: "",
     telegramId: "",
     discordUsername: "",
-    currentLuckPermsGroup: "",
+    currentLuckPermsGroup: luckPermsGroups[0] ?? "",
     projectPosition: "",
   });
 
@@ -96,7 +99,7 @@ export function StaffDirectory({ rows, luckPermsReady }: { rows: StaffRow[]; luc
       const result = await response.json().catch(() => null);
       setCreateError(result?.error ?? "Не удалось добавить сотрудника.");
     } else {
-      setForm({ username: "", uuid: "", telegramId: "", discordUsername: "", currentLuckPermsGroup: "", projectPosition: "" });
+      setForm({ username: "", uuid: "", telegramId: "", discordUsername: "", currentLuckPermsGroup: luckPermsGroups[0] ?? "", projectPosition: "" });
       setShowCreate(false);
       router.refresh();
     }
@@ -134,7 +137,23 @@ export function StaffDirectory({ rows, luckPermsReady }: { rows: StaffRow[]; luc
             <Input value={form.uuid} onChange={(event) => setForm((current) => ({ ...current, uuid: event.target.value }))} placeholder="UUID" />
             <Input value={form.telegramId} onChange={(event) => setForm((current) => ({ ...current, telegramId: event.target.value }))} placeholder="Telegram ID" />
             <Input value={form.discordUsername} onChange={(event) => setForm((current) => ({ ...current, discordUsername: event.target.value }))} placeholder="Discord username" />
-            <Input value={form.currentLuckPermsGroup} onChange={(event) => setForm((current) => ({ ...current, currentLuckPermsGroup: event.target.value }))} placeholder="LuckPerms group" />
+            <select
+              value={form.currentLuckPermsGroup}
+              onChange={(event) => setForm((current) => ({ ...current, currentLuckPermsGroup: event.target.value }))}
+              className={selectClassName}
+              disabled={!luckPermsReady}
+            >
+              {luckPermsGroups.length === 0 ? (
+                <option value="" className="bg-[#130d23] text-white">
+                  Нет настроенных групп
+                </option>
+              ) : null}
+              {luckPermsGroups.map((group) => (
+                <option key={group} value={group} className="bg-[#130d23] text-white">
+                  {group}
+                </option>
+              ))}
+            </select>
             <Input value={form.projectPosition} onChange={(event) => setForm((current) => ({ ...current, projectPosition: event.target.value }))} placeholder="Должность" />
             {createError ? <p className="text-sm text-red-100 md:col-span-2 xl:col-span-3">{createError}</p> : null}
             <div className="flex gap-2 md:col-span-2 xl:col-span-3">
