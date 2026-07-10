@@ -33,9 +33,27 @@ export async function createStaffMember(input: {
       telegramId: input.telegramId,
       discordUsername: input.discordUsername,
       currentLuckPermsGroup: input.currentLuckPermsGroup,
+      pendingLuckPermsGroup: input.currentLuckPermsGroup,
       projectPosition: input.projectPosition,
       assignedById: input.assignedById,
       status: StaffStatus.PROBATION,
+    },
+  });
+
+  const command = await queueLuckPermsGroupChange({
+    staffMemberId: staff.id,
+    username: staff.username,
+    uuid: staff.uuid,
+    group: input.currentLuckPermsGroup,
+    requestedById: input.assignedById,
+  });
+
+  await prisma.staffHistory.create({
+    data: {
+      staffMemberId: staff.id,
+      actorUserId: input.assignedById,
+      action: "staff.created_luckperms_group.queued",
+      newValue: { pendingLuckPermsGroup: input.currentLuckPermsGroup, commandId: command.id },
     },
   });
 

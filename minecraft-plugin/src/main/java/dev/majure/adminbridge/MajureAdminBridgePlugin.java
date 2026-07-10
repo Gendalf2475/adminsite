@@ -137,6 +137,12 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
             outcome = applyLuckPermsGroup(command.payload());
         }
 
+        if (outcome.success()) {
+            getLogger().info("Command " + command.id() + " completed successfully.");
+        } else {
+            getLogger().warning("Command " + command.id() + " failed: " + outcome.errorMessage());
+        }
+
         try {
             apiClient.reportCommandResult(command.id(), outcome.success(), outcome.result(), outcome.errorMessage());
         } catch (InterruptedException exception) {
