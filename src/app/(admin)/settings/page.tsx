@@ -21,9 +21,6 @@ export default function SettingsPage() {
           <Button variant="primary">
             <Link href="/settings/roles">Роли и права</Link>
           </Button>
-          <Button variant="outline">
-            <Link href="/integrations">Интеграции</Link>
-          </Button>
         </CardContent>
       </Card>
     </>

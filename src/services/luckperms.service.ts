@@ -1,5 +1,9 @@
 import { queueMinecraftCommand } from "@/services/minecraft.service";
 
+export function isLuckPermsIntegrationConfigured() {
+  return Boolean(process.env.MINECRAFT_PLUGIN_API_TOKEN);
+}
+
 export async function queueLuckPermsGroupChange(input: {
   staffMemberId: string;
   username: string;

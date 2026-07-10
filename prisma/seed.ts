@@ -10,7 +10,7 @@ const permissions = [
   ["applications.manage", "Обработка заявок"],
   ["applications.accept", "Принятие кандидатов"],
   ["applications.reject", "Отклонение кандидатов"],
-  ["applications.send_report", "Отправка отчетов кандидатам"],
+  ["applications.send_report", "Отметка отчетов кандидатам"],
   ["tickets.view", "Просмотр тикетов"],
   ["tickets.reply", "Ответы игрокам"],
   ["tickets.close", "Закрытие тикетов"],
@@ -171,35 +171,8 @@ async function main() {
     update: { active: true, expiresAt: null },
   });
 
-  const curator = await prisma.staffMember.upsert({
-    where: { username: "AstraMajure" },
-    create: {
-      username: "AstraMajure",
-      uuid: "00000000-0000-0000-0000-000000000002",
-      telegramId: "200000001",
-      discordUsername: "astra.majure",
-      currentLuckPermsGroup: "curator",
-      projectPosition: "Куратор модерации",
-      status: StaffStatus.ACTIVE,
-      assignedById: owner.id,
-    },
-    update: {},
-  });
-
-  await prisma.staffMember.upsert({
-    where: { username: "NordKeeper" },
-    create: {
-      username: "NordKeeper",
-      uuid: "00000000-0000-0000-0000-000000000003",
-      telegramId: "200000002",
-      discordUsername: "nordkeeper",
-      currentLuckPermsGroup: "moderator",
-      pendingLuckPermsGroup: "admin",
-      projectPosition: "Модератор",
-      status: StaffStatus.PROBATION,
-      assignedById: owner.id,
-    },
-    update: {},
+  await prisma.staffMember.deleteMany({
+    where: { username: { in: ["AstraMajure", "NordKeeper"] } },
   });
 
   await prisma.application.upsert({
@@ -296,7 +269,7 @@ async function main() {
     data: {
       integration: "seed",
       status: SyncStatus.SUCCESS,
-      message: `Seed completed. Demo ticket: ${ticket.id}, demo staff: ${curator.id}`,
+      message: `Seed completed. Demo ticket: ${ticket.id}. Demo staff cleanup applied.`,
       finishedAt: new Date(),
     },
   });

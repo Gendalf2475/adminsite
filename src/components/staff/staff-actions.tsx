@@ -9,7 +9,7 @@ import type { StaffRow, StaffStatus } from "@/types/domain";
 
 const statuses: StaffStatus[] = ["ACTIVE", "PROBATION", "VACATION", "REMOVED"];
 
-export function StaffActions({ staff }: { staff: StaffRow }) {
+export function StaffActions({ staff, luckPermsReady }: { staff: StaffRow; luckPermsReady: boolean }) {
   const router = useRouter();
   const [form, setForm] = useState({
     projectPosition: staff.projectPosition,
@@ -41,6 +41,10 @@ export function StaffActions({ staff }: { staff: StaffRow }) {
   }
 
   async function changeGroup() {
+    if (!luckPermsReady) {
+      setError("Смена группы будет доступна после подключения LuckPerms.");
+      return;
+    }
     const nextGroup = group.trim();
     if (!nextGroup) return;
     setPending("group");
@@ -96,8 +100,14 @@ export function StaffActions({ staff }: { staff: StaffRow }) {
       </div>
 
       <div className="flex flex-col gap-3 md:flex-row">
-        <Input value={group} onChange={(event) => setGroup(event.target.value)} placeholder="Новая LuckPerms group" />
-        <Button type="button" variant="outline" onClick={changeGroup} disabled={pending !== null || !group.trim()}>
+        <Input value={group} onChange={(event) => setGroup(event.target.value)} placeholder="Новая LuckPerms group" disabled={!luckPermsReady} />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={changeGroup}
+          disabled={pending !== null || !group.trim() || !luckPermsReady}
+          title={luckPermsReady ? undefined : "Будет доступно после подключения LuckPerms"}
+        >
           <ShieldCheck size={16} />
           {pending === "group" ? "Очередь..." : "Сменить группу"}
         </Button>
@@ -106,6 +116,12 @@ export function StaffActions({ staff }: { staff: StaffRow }) {
           {pending === "remove" ? "Снятие..." : "Снять"}
         </Button>
       </div>
+
+      {!luckPermsReady ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[.04] p-3 text-sm text-[var(--text-muted)]">
+          Смена LuckPerms-группы будет доступна после подключения Minecraft-плагина.
+        </div>
+      ) : null}
 
       {error ? <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-3 text-sm text-red-100">{error}</div> : null}
     </div>

@@ -89,6 +89,15 @@ export type AuditLogRow = {
   metadata?: Record<string, unknown>;
 };
 
+export type GlobalSearchResult = {
+  type: "staff" | "application" | "ticket";
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
+  status?: StaffStatus | ApplicationStatus | TicketStatus;
+};
+
 export type IntegrationStatus = {
   id: string;
   name: string;
@@ -96,6 +105,20 @@ export type IntegrationStatus = {
   status: "online" | "warning" | "offline";
   lastSync: string;
   contract: string;
+};
+
+export type DashboardSummary = {
+  metrics: {
+    activeStaff: number;
+    newApplications: number;
+    inWorkApplications: number;
+    openTickets: number;
+  };
+  auditRows: AuditLogRow[];
+  integrationStatuses: IntegrationStatus[];
+  applicationRows: ApplicationRow[];
+  ticketRows: TicketRow[];
+  generatedAt: string;
 };
 
 export type MinecraftCommand = {

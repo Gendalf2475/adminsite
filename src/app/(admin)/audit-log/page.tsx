@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { AuditLogTable } from "@/components/shared/audit-log-table";
+import { AuditLogLive } from "@/components/audit/audit-log-live";
 import { prisma } from "@/lib/prisma";
 import { mapAuditLogRow } from "@/services/view-models";
 
@@ -19,7 +19,7 @@ export default async function AuditLogPage() {
         title="Audit Log"
         description="Все важные действия backend пишет с actor, entity, old/new values и metadata."
       />
-      <AuditLogTable rows={rows} />
+      <AuditLogLive initialRows={rows} />
     </>
   );
 }

@@ -12,7 +12,7 @@ const labels: Record<string, string> = {
   ACCEPTED: "Принято",
   REJECTED: "Отклонено",
   NEEDS_INFO: "Уточнение",
-  REPORT_SENT: "Отчет отправлен",
+  REPORT_SENT: "Отчет отмечен",
   OPEN: "Открыт",
   WAITING_PLAYER: "Ожидает игрока",
   CLOSED: "Закрыт",

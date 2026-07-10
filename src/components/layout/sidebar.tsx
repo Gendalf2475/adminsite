@@ -1,37 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import {
-  Activity,
-  ClipboardList,
-  Gauge,
-  History,
-  LifeBuoy,
-  PlugZap,
-  Settings,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type NavItem = {
-  href: Route;
-  label: string;
-  icon: typeof Gauge;
-};
-
-const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: Gauge },
-  { href: "/staff", label: "Персонал", icon: Users },
-  { href: "/applications", label: "Заявки", icon: ClipboardList },
-  { href: "/tickets", label: "Техподдержка", icon: LifeBuoy },
-  { href: "/audit-log", label: "Audit Log", icon: History },
-  { href: "/integrations", label: "Интеграции", icon: PlugZap },
-  { href: "/settings/roles", label: "Роли", icon: ShieldCheck },
-  { href: "/settings", label: "Настройки", icon: Settings },
-];
+import { navItems } from "@/components/layout/nav-items";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -44,7 +17,7 @@ export function Sidebar() {
         </span>
         <span>
           <span className="block font-display text-sm font-bold tracking-[.08em] text-white">
-            MAJ<span className="gradient-text">URE</span>
+            MAJURE
           </span>
           <span className="block text-xs font-semibold text-[var(--text-faint)]">Admin Control</span>
         </span>
@@ -52,7 +25,7 @@ export function Sidebar() {
 
       <nav className="mt-6 flex flex-1 flex-col gap-1">
         {navItems.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = pathname === item.href || (item.href !== "/settings" && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
           return (
             <Link

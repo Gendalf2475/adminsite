@@ -16,7 +16,7 @@ const actionButtons: Array<{ status: ApplicationStatus; label: string; icon: Rea
   { status: "ACCEPTED", label: "Принять", icon: Check, variant: "primary" },
   { status: "REJECTED", label: "Отклонить", icon: X, variant: "danger" },
   { status: "NEEDS_INFO", label: "Запросить уточнение", icon: MessageSquare, variant: "default" },
-  { status: "REPORT_SENT", label: "Отправить отчет", icon: Send, variant: "default" },
+  { status: "REPORT_SENT", label: "Отметить отчет", icon: Send, variant: "default" },
 ];
 
 export function ApplicationViewer({ rows }: { rows: ApplicationRow[] }) {

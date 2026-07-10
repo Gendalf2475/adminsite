@@ -14,6 +14,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:cleanup-demo-staff": "tsx prisma/cleanup-demo-staff.ts",
     "studio": "prisma studio"
   },
   "dependencies": {

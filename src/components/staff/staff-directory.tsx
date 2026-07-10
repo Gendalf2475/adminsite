@@ -24,7 +24,7 @@ const filterOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: "REMOVED", label: "Снятые" },
 ];
 
-export function StaffDirectory({ rows }: { rows: StaffRow[] }) {
+export function StaffDirectory({ rows, luckPermsReady }: { rows: StaffRow[]; luckPermsReady: boolean }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
@@ -72,6 +72,10 @@ export function StaffDirectory({ rows }: { rows: StaffRow[] }) {
   ];
 
   async function createStaff() {
+    if (!luckPermsReady) {
+      setCreateError("Добавление будет доступно после подключения LuckPerms.");
+      return;
+    }
     if (!form.username.trim() || !form.currentLuckPermsGroup.trim() || !form.projectPosition.trim()) return;
     setCreatePending(true);
     setCreateError(null);
@@ -107,13 +111,23 @@ export function StaffDirectory({ rows }: { rows: StaffRow[] }) {
           <p className="mt-1 text-sm text-[var(--text-muted)]">Поиск по нику, UUID, группе, должности и Telegram ID.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="primary" onClick={() => setShowCreate((current) => !current)}>
+          <Button
+            variant="primary"
+            onClick={() => setShowCreate((current) => !current)}
+            disabled={!luckPermsReady}
+            title={luckPermsReady ? undefined : "Будет доступно после подключения LuckPerms"}
+          >
             <Plus size={16} />
             Добавить
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!luckPermsReady ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4 text-sm text-[var(--text-muted)]">
+            Добавление сотрудников будет доступно после подключения LuckPerms.
+          </div>
+        ) : null}
         {showCreate ? (
           <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4 md:grid-cols-2 xl:grid-cols-3">
             <Input value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="Ник" />

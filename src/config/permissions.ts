@@ -27,7 +27,7 @@ export const permissionLabels: Record<PermissionKey, string> = {
   "applications.manage": "Обработка заявок",
   "applications.accept": "Принятие кандидатов",
   "applications.reject": "Отклонение кандидатов",
-  "applications.send_report": "Отправка отчетов",
+  "applications.send_report": "Отметка отчетов",
   "tickets.view": "Просмотр тикетов",
   "tickets.reply": "Ответы в тикетах",
   "tickets.close": "Закрытие тикетов",

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { parseJson } from "@/lib/api";
 import { requireApiPermission } from "@/lib/auth";
 import { createStaffMember, listStaff } from "@/services/staff.service";
+import { isLuckPermsIntegrationConfigured } from "@/services/luckperms.service";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const guard = await requireApiPermission("staff.manage");
   if (!guard.ok) return guard.response;
+  if (!isLuckPermsIntegrationConfigured()) {
+    return NextResponse.json({ error: "LuckPerms integration is not configured" }, { status: 503 });
+  }
 
   const parsed = await parseJson(request, createStaffSchema);
   if (!parsed.success) return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 422 });
