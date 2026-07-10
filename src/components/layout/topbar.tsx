@@ -11,6 +11,7 @@ import { navItems } from "@/components/layout/nav-items";
 import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/types/domain";
 import type { GlobalSearchResult } from "@/types/domain";
+import { hasPermission } from "@/lib/permissions";
 
 const searchTypeLabels: Record<GlobalSearchResult["type"], string> = {
   staff: "Персонал",
@@ -28,6 +29,7 @@ export function Topbar({ user }: { user: AuthUser }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchPending, setSearchPending] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const visibleNavItems = navItems.filter((item) => !item.permission || hasPermission(user.permissions, item.permission));
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -171,14 +173,16 @@ export function Topbar({ user }: { user: AuthUser }) {
           {notificationsOpen ? (
             <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-white/10 bg-[#130a22]/95 p-3 shadow-glass backdrop-blur-xl">
               <p className="text-sm font-bold text-white">Уведомлений нет</p>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">Важные действия сейчас доступны в audit log.</p>
-              <Link
-                href="/audit-log"
-                onClick={() => setNotificationsOpen(false)}
-                className="mt-3 inline-flex h-9 items-center rounded-full border border-white/15 px-3 text-xs font-bold text-white transition hover:bg-white/10"
-              >
-                Открыть audit log
-              </Link>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">Важные действия доступны в журнале.</p>
+              {hasPermission(user.permissions, "audit.view") ? (
+                <Link
+                  href="/audit-log"
+                  onClick={() => setNotificationsOpen(false)}
+                  className="mt-3 inline-flex h-9 items-center rounded-full border border-white/15 px-3 text-xs font-bold text-white transition hover:bg-white/10"
+                >
+                  Открыть журнал
+                </Link>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -212,7 +216,7 @@ export function Topbar({ user }: { user: AuthUser }) {
             </div>
 
             <nav className="mt-4 flex flex-col gap-1 overflow-y-auto">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link

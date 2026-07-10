@@ -34,11 +34,18 @@ export type StaffRow = {
   discordUsername?: string | null;
   currentLuckPermsGroup: string;
   pendingLuckPermsGroup?: string | null;
-  projectPosition: string;
   assignedAt: string;
   assignedBy: string;
   status: StaffStatus;
-  notes?: string;
+  duties: StaffDutyState[];
+};
+
+export type StaffDutyState = {
+  key: string;
+  name: string;
+  mode: "INHERIT" | "ENABLED" | "DISABLED";
+  defaultEnabled: boolean;
+  effective: boolean;
 };
 
 export type ApplicationRow = {
@@ -83,7 +90,7 @@ export type AuditLogRow = {
   actor: string;
   action: string;
   entityType: string;
-  entityId?: string;
+  entity: string;
   createdAt: string;
   metadata?: Record<string, unknown>;
 };
@@ -107,6 +114,13 @@ export type IntegrationStatus = {
 };
 
 export type DashboardSummary = {
+  visibility: {
+    staff: boolean;
+    applications: boolean;
+    tickets: boolean;
+    audit: boolean;
+    integrations: boolean;
+  };
   metrics: {
     activeStaff: number;
     newApplications: number;

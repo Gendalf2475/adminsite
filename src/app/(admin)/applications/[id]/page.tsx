@@ -3,8 +3,10 @@ import { ApplicationViewer } from "@/components/applications/application-viewer"
 import { PageHeader } from "@/components/layout/page-header";
 import { getApplication, listApplications } from "@/services/application.service";
 import { mapApplicationRow } from "@/services/view-models";
+import { requirePagePermission } from "@/lib/auth";
 
 export default async function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePagePermission("applications.view");
   const { id } = await params;
   const [selectedRecord, applicationRecords] = await Promise.all([getApplication(id), listApplications()]);
   if (!selectedRecord) notFound();

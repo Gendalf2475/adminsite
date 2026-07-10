@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { parseJson } from "@/lib/api";
 import { requireApiPermission } from "@/lib/auth";
-import { changeStaffLuckPermsGroup } from "@/services/staff.service";
+import { changeStaffLuckPermsGroup, getStaffMember } from "@/services/staff.service";
 import { isLuckPermsIntegrationConfigured, validateLuckPermsStaffGroup } from "@/services/luckperms.service";
+import { canAssignStaffGroup, canManageStaffGroup } from "@/config/roles";
 
 export const runtime = "nodejs";
 
@@ -20,5 +21,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const group = validateLuckPermsStaffGroup(parsed.data.group);
   if (!group.ok) return NextResponse.json({ error: group.message }, { status: 422 });
   const { id } = await context.params;
+  const staff = await getStaffMember(id);
+  if (!staff) return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
+  if (!canManageStaffGroup(guard.user, staff.currentLuckPermsGroup) || !canAssignStaffGroup(guard.user, group.group)) {
+    return NextResponse.json({ error: "Нельзя назначить этот ранг." }, { status: 403 });
+  }
   return NextResponse.json({ data: await changeStaffLuckPermsGroup(id, group.group, guard.user.id) }, { status: 202 });
 }

@@ -9,7 +9,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen">
-      <Sidebar />
+      <Sidebar user={user} />
       <div className="lg:pl-[304px]">
         <Topbar user={user} />
         <main className="page-shell">{children}</main>

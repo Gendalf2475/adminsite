@@ -1,7 +1,7 @@
 import type { Prisma, SyncStatus } from "@prisma/client";
-import type { ApplicationRow, AuditLogRow, IntegrationStatus, StaffRow, TicketRow } from "@/types/domain";
+import type { ApplicationRow, IntegrationStatus, StaffDutyState, StaffRow, TicketRow } from "@/types/domain";
 
-type StaffForRow = Prisma.StaffMemberGetPayload<{ include: { assignedBy: true } }>;
+type StaffForRow = Prisma.StaffMemberGetPayload<{ include: { assignedBy: { include: { staffMember: true } } } }>;
 type ApplicationForRow = Prisma.ApplicationGetPayload<{
   include: { assignedReviewer: true; comments: { include: { author: true } } };
 }>;
@@ -12,7 +12,6 @@ type TicketForRow = Prisma.TicketGetPayload<{
     messages: { include: { authorUser: true; outbound: true } };
   };
 }>;
-type AuditLogForRow = Prisma.AuditLogGetPayload<{ include: { actor: true } }>;
 type SyncLogForStatus = { integration: string; status: SyncStatus; finishedAt: Date | null; startedAt: Date };
 
 const integrationNames: Record<string, string> = {
@@ -39,7 +38,7 @@ const integrationContracts: Record<string, string> = {
   minecraft_commands: "POST /api/integrations/minecraft/pull-commands + command-result",
 };
 
-export function mapStaffRow(staff: StaffForRow): StaffRow {
+export function mapStaffRow(staff: StaffForRow, duties: StaffDutyState[] = []): StaffRow {
   return {
     id: staff.id,
     username: staff.username,
@@ -47,11 +46,10 @@ export function mapStaffRow(staff: StaffForRow): StaffRow {
     discordUsername: staff.discordUsername,
     currentLuckPermsGroup: staff.currentLuckPermsGroup,
     pendingLuckPermsGroup: staff.pendingLuckPermsGroup,
-    projectPosition: staff.projectPosition,
     assignedAt: staff.assignedAt.toISOString(),
-    assignedBy: staff.assignedBy?.displayName ?? "System",
+    assignedBy: staff.assignedBy?.staffMember?.username ?? staff.assignedBy?.telegramUsername ?? staff.assignedBy?.displayName ?? "Система",
     status: staff.status,
-    notes: staff.notes ?? undefined,
+    duties,
   };
 }
 
@@ -106,18 +104,6 @@ export function mapTicketRow(ticket: TicketForRow): TicketRow {
         deliveryError: latestDelivery?.errorMessage ?? null,
       };
     }),
-  };
-}
-
-export function mapAuditLogRow(row: AuditLogForRow): AuditLogRow {
-  return {
-    id: row.id,
-    actor: row.actor?.displayName ?? "System",
-    action: row.action,
-    entityType: row.entityType,
-    entityId: row.entityId ?? undefined,
-    createdAt: row.createdAt.toISOString(),
-    metadata: row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? (row.metadata as Record<string, unknown>) : undefined,
   };
 }
 

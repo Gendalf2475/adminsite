@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
+import { requirePagePermission } from "@/lib/auth";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requirePagePermission("settings.view");
   return (
     <>
       <PageHeader

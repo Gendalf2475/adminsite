@@ -1,4 +1,4 @@
-import { CalendarDays, MessageCircle, Shield } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, MessageCircle, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { StaffRow } from "@/types/domain";
@@ -10,7 +10,7 @@ export function StaffCard({ staff }: { staff: StaffRow }) {
       <CardHeader>
         <div>
           <CardTitle>{staff.username}</CardTitle>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">{staff.projectPosition}</p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">{staff.currentLuckPermsGroup}</p>
         </div>
         <StatusBadge value={staff.status} />
       </CardHeader>
@@ -31,6 +31,13 @@ export function StaffCard({ staff }: { staff: StaffRow }) {
             <span className="text-[var(--text-faint)]">Назначен</span>
             <span className="ml-auto font-bold text-white">{formatDateTime(staff.assignedAt)}</span>
           </div>
+          {staff.duties.map((duty) => (
+            <div key={duty.key} className="flex items-center gap-3">
+              <BriefcaseBusiness size={16} className="text-fuchsia-200" />
+              <span className="text-[var(--text-faint)]">{duty.name}</span>
+              <span className="ml-auto font-bold text-white">{duty.effective ? "Есть" : "Нет"}</span>
+            </div>
+          ))}
         </div>
         {staff.pendingLuckPermsGroup ? (
           <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 p-3 text-sm text-amber-100">

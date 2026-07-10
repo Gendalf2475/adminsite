@@ -2,8 +2,10 @@ import { PageHeader } from "@/components/layout/page-header";
 import { IntegrationStatusCard } from "@/components/shared/integration-status-card";
 import { prisma } from "@/lib/prisma";
 import { buildIntegrationStatuses } from "@/services/view-models";
+import { requirePagePermission } from "@/lib/auth";
 
 export default async function IntegrationsPage() {
+  await requirePagePermission("integrations.manage");
   const integrationStatuses = buildIntegrationStatuses(
     await prisma.integrationSyncLog.findMany({
       orderBy: { startedAt: "desc" },

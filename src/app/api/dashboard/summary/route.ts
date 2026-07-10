@@ -10,7 +10,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   return NextResponse.json(
-    { data: await getDashboardSummary() },
+    { data: await getDashboardSummary(user.permissions) },
     { headers: { "cache-control": "no-store" } },
   );
 }

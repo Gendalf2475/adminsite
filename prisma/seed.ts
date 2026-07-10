@@ -17,71 +17,84 @@ const permissions = [
   ["tickets.assign", "Назначение ответственных"],
   ["settings.view", "Просмотр настроек"],
   ["settings.manage", "Управление настройками"],
-  ["audit.view", "Просмотр audit log"],
+  ["audit.view", "Просмотр журнала действий"],
   ["integrations.manage", "Управление интеграциями"],
 ] as const;
 
 const roleDefinitions = [
   {
-    key: "owner",
-    name: "Owner",
-    kind: RoleKind.OWNER,
-    priority: 1000,
+    key: "developer",
+    name: "Developer",
+    kind: RoleKind.STAFF_RANK,
+    priority: 800,
     permissionKeys: permissions.map(([key]) => key),
   },
   {
-    key: "curator",
-    name: "Curator",
+    key: "support",
+    name: "Support",
     kind: RoleKind.STAFF_RANK,
-    priority: 800,
-    permissionKeys: permissions.map(([key]) => key).filter((key) => key !== "settings.manage"),
+    priority: 700,
+    permissionKeys: permissions.map(([key]) => key),
   },
   {
-    key: "senior_admin",
-    name: "Senior Admin",
+    key: "staff",
+    name: "Staff",
     kind: RoleKind.STAFF_RANK,
     priority: 600,
     permissionKeys: [
       "staff.view",
       "staff.manage",
+      "staff.change_luckperms_group",
       "applications.view",
       "applications.manage",
       "applications.accept",
       "applications.reject",
-      "tickets.view",
-      "tickets.reply",
-      "tickets.close",
-      "tickets.assign",
+      "applications.send_report",
+      "settings.view",
       "audit.view",
     ],
   },
   {
-    key: "admin",
-    name: "Admin",
+    key: "st.moder",
+    name: "Старший модератор",
+    kind: RoleKind.STAFF_RANK,
+    priority: 500,
+    permissionKeys: ["staff.view", "applications.view", "applications.manage", "applications.accept", "applications.reject", "applications.send_report", "audit.view"],
+  },
+  {
+    key: "moder",
+    name: "Модератор",
     kind: RoleKind.STAFF_RANK,
     priority: 400,
-    permissionKeys: ["staff.view", "applications.view", "applications.manage", "tickets.view", "tickets.reply", "tickets.assign"],
+    permissionKeys: ["staff.view", "applications.view", "applications.manage", "applications.accept", "applications.reject"],
   },
   {
-    key: "moderator",
-    name: "Moderator",
+    key: "st.helper",
+    name: "Старший хелпер",
     kind: RoleKind.STAFF_RANK,
     priority: 300,
-    permissionKeys: ["staff.view", "applications.view", "tickets.view", "tickets.reply"],
+    permissionKeys: ["staff.view", "applications.view", "applications.manage"],
   },
   {
-    key: "support",
-    name: "Support",
-    kind: RoleKind.DUTY,
-    priority: 250,
-    permissionKeys: ["tickets.view", "tickets.reply", "tickets.close", "tickets.assign"],
+    key: "helper",
+    name: "Хелпер",
+    kind: RoleKind.STAFF_RANK,
+    priority: 200,
+    permissionKeys: ["staff.view", "applications.view"],
   },
   {
-    key: "viewer",
-    name: "Viewer",
-    kind: RoleKind.SYSTEM,
+    key: "junior",
+    name: "Junior",
+    kind: RoleKind.STAFF_RANK,
     priority: 100,
-    permissionKeys: ["staff.view", "applications.view", "tickets.view", "settings.view", "audit.view"],
+    permissionKeys: ["staff.view"],
+  },
+  {
+    key: "duty_support",
+    name: "Техподдержка",
+    kind: RoleKind.DUTY,
+    priority: 50,
+    permissionKeys: ["tickets.view", "tickets.reply", "tickets.close", "tickets.assign"],
   },
 ] as const;
 
@@ -117,6 +130,14 @@ async function main() {
     });
   }
 
+  const staffRole = await prisma.role.findUniqueOrThrow({ where: { key: "staff" } });
+  const supportDuty = await prisma.role.findUniqueOrThrow({ where: { key: "duty_support" } });
+  await prisma.roleDutyDefault.upsert({
+    where: { rankRoleId_dutyRoleId: { rankRoleId: staffRole.id, dutyRoleId: supportDuty.id } },
+    create: { rankRoleId: staffRole.id, dutyRoleId: supportDuty.id },
+    update: {},
+  });
+
   const ownerTelegramId = process.env.OWNER_TELEGRAM_ID ?? "123456789";
   const ownerUsername = process.env.OWNER_TELEGRAM_USERNAME ?? "owner";
 
@@ -127,14 +148,14 @@ async function main() {
       uuid: "00000000-0000-0000-0000-000000000001",
       telegramId: ownerTelegramId,
       discordUsername: "owner#0001",
-      currentLuckPermsGroup: "owner",
+      currentLuckPermsGroup: "developer",
       projectPosition: "Владелец проекта",
       status: StaffStatus.ACTIVE,
       notes: "Seed owner account.",
     },
     update: {
       telegramId: ownerTelegramId,
-      currentLuckPermsGroup: "owner",
+      currentLuckPermsGroup: "developer",
       projectPosition: "Владелец проекта",
       status: StaffStatus.ACTIVE,
     },
@@ -151,7 +172,7 @@ async function main() {
       roles: {
         create: {
           role: {
-            connect: { key: "owner" },
+            connect: { key: "developer" },
           },
         },
       },
@@ -164,7 +185,7 @@ async function main() {
     },
   });
 
-  const ownerRole = await prisma.role.findUniqueOrThrow({ where: { key: "owner" } });
+  const ownerRole = await prisma.role.findUniqueOrThrow({ where: { key: "developer" } });
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: owner.id, roleId: ownerRole.id } },
     create: { userId: owner.id, roleId: ownerRole.id },

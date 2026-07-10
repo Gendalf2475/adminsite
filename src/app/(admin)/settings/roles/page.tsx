@@ -1,45 +1,31 @@
-import { ShieldCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
-import { permissionLabels, type PermissionKey } from "@/config/permissions";
+import { RolesManager, type RoleEditorRow } from "@/components/roles/roles-manager";
+import { STAFF_RANK_KEYS, SUPPORT_DUTY_KEY, canEditRole } from "@/config/roles";
+import { requirePagePermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function RolesPage() {
+  const user = await requirePagePermission("settings.view");
   const roles = await prisma.role.findMany({
-    include: { permissions: true },
+    where: { key: { in: [...STAFF_RANK_KEYS, SUPPORT_DUTY_KEY] } },
+    include: { permissions: true, defaultDuties: { include: { dutyRole: true } } },
     orderBy: [{ priority: "desc" }, { name: "asc" }],
   });
+  const rows: RoleEditorRow[] = roles.map((role) => ({
+    id: role.id,
+    key: role.key,
+    name: role.name,
+    kind: role.kind as "STAFF_RANK" | "DUTY",
+    description: role.description,
+    permissionKeys: role.permissions.map((permission) => permission.key) as RoleEditorRow["permissionKeys"],
+    defaultDutyKeys: role.defaultDuties.map((item) => item.dutyRole.key),
+    editable: canEditRole(user, role.key),
+  }));
 
   return (
     <>
-      <PageHeader
-        eyebrow="RBAC"
-        title="Роли и права"
-        description="Effective permissions собираются как union ранга и допзанятостей. Backend guards используют эти права для API."
-      />
-      <section className="grid gap-4 xl:grid-cols-2">
-        {roles.map((role) => (
-          <Card key={role.id}>
-            <CardHeader>
-              <div>
-                <CardTitle>{role.name}</CardTitle>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  {role.permissions.length} permissions · {role.kind.toLowerCase()}
-                </p>
-              </div>
-              <ShieldCheck className="text-fuchsia-200" size={18} />
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              {role.permissions.map((permission) => (
-                <Badge key={permission.id} variant="muted">
-                  {permissionLabels[permission.key as PermissionKey] ?? permission.key}
-                </Badge>
-              ))}
-            </CardContent>
-          </Card>
-        ))}
-      </section>
+      <PageHeader eyebrow="Доступ" title="Роли и права" />
+      <RolesManager roles={rows} />
     </>
   );
 }

@@ -5,9 +5,12 @@ import { usePathname } from "next/navigation";
 import { Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navItems } from "@/components/layout/nav-items";
+import { hasPermission } from "@/lib/permissions";
+import type { AuthUser } from "@/types/domain";
 
-export function Sidebar() {
+export function Sidebar({ user }: { user: AuthUser }) {
   const pathname = usePathname();
+  const visibleItems = navItems.filter((item) => !item.permission || hasPermission(user.permissions, item.permission));
 
   return (
     <aside className="glass-panel fixed left-5 top-5 z-30 hidden h-[calc(100vh-40px)] w-[264px] flex-col rounded-3xl p-4 lg:flex">
@@ -24,7 +27,7 @@ export function Sidebar() {
       </Link>
 
       <nav className="mt-6 flex flex-1 flex-col gap-1">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const active = pathname === item.href || (item.href !== "/settings" && pathname.startsWith(`${item.href}/`));
           const Icon = item.icon;
           return (

@@ -2,6 +2,7 @@ import { CommandStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { resolveCommandStatus } from "@/services/minecraft-command-state";
+import { reconcileStaffAccess } from "@/services/staff-access.service";
 
 export type QueueMinecraftCommandInput = {
   type: string;
@@ -120,6 +121,7 @@ export async function recordCommandResult(input: { commandId: string; success: b
           pendingLuckPermsGroup: null,
         },
       });
+      await reconcileStaffAccess(command.staffMemberId);
     }
   }
 
@@ -135,6 +137,6 @@ export async function recordCommandResult(input: { commandId: string; success: b
 }
 
 export function verifyMinecraftPluginToken(token: string | null) {
-  const expected = process.env.MINECRAFT_PLUGIN_API_TOKEN;
-  return Boolean(expected && token && expected === token);
+  const expected = process.env.MINECRAFT_PLUGIN_API_TOKEN?.trim();
+  return Boolean(expected && token?.trim() && expected === token.trim());
 }

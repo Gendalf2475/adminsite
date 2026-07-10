@@ -5,6 +5,7 @@ serverName: "main"
 staffGroups:
   - developer
   - support
+  - staff
   - st.moder
   - moder
   - st.helper

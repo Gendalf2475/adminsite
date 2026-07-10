@@ -2,10 +2,16 @@ import { StaffStatus, SyncStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { queueLuckPermsGroupChange } from "@/services/luckperms.service";
+import {
+  reconcileStaffAccess,
+  reconcileStaffAccessInTransaction,
+  setStaffDutyMode as persistStaffDutyMode,
+} from "@/services/staff-access.service";
+import type { StaffDutyMode } from "@/config/roles";
 
 export async function listStaff() {
   return prisma.staffMember.findMany({
-    include: { assignedBy: true },
+    include: { assignedBy: { include: { staffMember: true } } },
     orderBy: [{ status: "asc" }, { assignedAt: "desc" }],
   });
 }
@@ -13,7 +19,12 @@ export async function listStaff() {
 export async function getStaffMember(id: string) {
   return prisma.staffMember.findUnique({
     where: { id },
-    include: { assignedBy: true, history: { orderBy: { createdAt: "desc" }, take: 50 } },
+    include: {
+      assignedBy: { include: { staffMember: true } },
+      user: true,
+      dutyOverrides: { include: { dutyRole: true } },
+      history: { include: { actor: { include: { staffMember: true } } }, orderBy: { createdAt: "desc" }, take: 50 },
+    },
   });
 }
 
@@ -22,20 +33,23 @@ export async function createStaffMember(input: {
   telegramId?: string;
   discordUsername?: string;
   currentLuckPermsGroup: string;
-  projectPosition: string;
   assignedById?: string | null;
 }) {
-  const staff = await prisma.staffMember.create({
-    data: {
-      username: input.username,
-      telegramId: input.telegramId,
-      discordUsername: input.discordUsername,
-      currentLuckPermsGroup: input.currentLuckPermsGroup,
-      pendingLuckPermsGroup: input.currentLuckPermsGroup,
-      projectPosition: input.projectPosition,
-      assignedById: input.assignedById,
-      status: StaffStatus.PROBATION,
-    },
+  const staff = await prisma.$transaction(async (tx) => {
+    const created = await tx.staffMember.create({
+      data: {
+        username: input.username,
+        telegramId: normalizeNullable(input.telegramId),
+        discordUsername: normalizeNullable(input.discordUsername),
+        currentLuckPermsGroup: input.currentLuckPermsGroup,
+        pendingLuckPermsGroup: input.currentLuckPermsGroup,
+        projectPosition: input.currentLuckPermsGroup,
+        assignedById: input.assignedById,
+        status: StaffStatus.PROBATION,
+      },
+    });
+    await reconcileStaffAccessInTransaction(tx, created.id);
+    return created;
   });
 
   const command = await queueLuckPermsGroupChange({
@@ -67,23 +81,35 @@ export async function createStaffMember(input: {
 
 export async function updateStaffMember(
   id: string,
-  input: Partial<{ projectPosition: string; status: StaffStatus; notes: string; telegramId: string | null; discordUsername: string | null }>,
+  input: Partial<{ status: StaffStatus; telegramId: string | null; discordUsername: string | null }>,
   actorUserId?: string | null,
 ) {
   const before = await prisma.staffMember.findUniqueOrThrow({ where: { id } });
-  const staff = await prisma.staffMember.update({
-    where: { id },
-    data: input,
+  const changedFields = Object.keys(input).filter((key) => {
+    const value = input[key as keyof typeof input];
+    return value !== undefined && before[key as keyof typeof before] !== value;
   });
-
-  await prisma.staffHistory.create({
-    data: {
-      staffMemberId: id,
-      actorUserId,
-      action: "staff.updated",
-      oldValue: before,
-      newValue: staff,
-    },
+  const staff = await prisma.$transaction(async (tx) => {
+    const updated = await tx.staffMember.update({
+      where: { id },
+      data: {
+        ...input,
+        telegramId: input.telegramId === undefined ? undefined : normalizeNullable(input.telegramId),
+        discordUsername: input.discordUsername === undefined ? undefined : normalizeNullable(input.discordUsername),
+      },
+    });
+    await reconcileStaffAccessInTransaction(tx, id);
+    await tx.staffHistory.create({
+      data: {
+        staffMemberId: id,
+        actorUserId,
+        action: "staff.updated",
+        oldValue: before,
+        newValue: updated,
+        metadata: { changedFields },
+      },
+    });
+    return updated;
   });
 
   await writeAuditLog({
@@ -93,6 +119,7 @@ export async function updateStaffMember(
     entityId: id,
     oldValue: before,
     newValue: staff,
+    metadata: { changedFields },
   });
 
   return staff;
@@ -103,6 +130,14 @@ export async function removeStaffMember(id: string, actorUserId?: string | null)
 }
 
 export async function changeStaffLuckPermsGroup(id: string, group: string, actorUserId?: string | null) {
+  const current = await prisma.staffMember.findUniqueOrThrow({ where: { id } });
+  if (current.currentLuckPermsGroup === group && !current.pendingLuckPermsGroup) {
+    return { staff: current, command: null };
+  }
+  if (current.pendingLuckPermsGroup === group) {
+    return { staff: current, command: null };
+  }
+
   const staff = await prisma.staffMember.update({
     where: { id },
     data: { pendingLuckPermsGroup: group },
@@ -136,6 +171,37 @@ export async function changeStaffLuckPermsGroup(id: string, group: string, actor
   return { staff, command };
 }
 
+export async function updateStaffDutyMode(input: {
+  id: string;
+  dutyKey: string;
+  mode: StaffDutyMode;
+  actorUserId?: string | null;
+}) {
+  const before = await prisma.staffDutyOverride.findFirst({
+    where: { staffMemberId: input.id, dutyRole: { key: input.dutyKey } },
+  });
+  const result = await persistStaffDutyMode({ staffMemberId: input.id, dutyKey: input.dutyKey, mode: input.mode });
+
+  await prisma.staffHistory.create({
+    data: {
+      staffMemberId: input.id,
+      actorUserId: input.actorUserId,
+      action: "staff.duty.updated",
+      oldValue: before ? { enabled: before.enabled } : { mode: "INHERIT" },
+      newValue: result,
+    },
+  });
+  await writeAuditLog({
+    actorUserId: input.actorUserId,
+    action: "staff.duty.updated",
+    entityType: "StaffMember",
+    entityId: input.id,
+    oldValue: before ? { enabled: before.enabled } : { mode: "INHERIT" },
+    newValue: result,
+  });
+  return result;
+}
+
 export type MinecraftStaffSyncInput = {
   username: string;
   telegramId?: string | null;
@@ -163,13 +229,12 @@ export async function syncStaffFromMinecraft(input: { staff: MinecraftStaffSyncI
         status: row.status ?? StaffStatus.ACTIVE,
       },
       update: {
-        telegramId: normalizeNullable(row.telegramId),
-        discordUsername: normalizeNullable(row.discordUsername),
         currentLuckPermsGroup: row.currentLuckPermsGroup,
-        projectPosition: normalizeNullable(row.projectPosition) ?? undefined,
-        status: row.status ?? undefined,
+        pendingLuckPermsGroup: before?.pendingLuckPermsGroup === row.currentLuckPermsGroup ? null : undefined,
       },
     });
+
+    await reconcileStaffAccess(staff.id);
 
     if (before) updated += 1;
     else created += 1;

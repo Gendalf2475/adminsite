@@ -1,11 +1,9 @@
 import { Badge } from "@/components/ui/badge";
+import { staffStatusLabels } from "@/config/staff";
 import type { ApplicationStatus, CommandStatus, StaffStatus, TicketPriority, TicketStatus } from "@/types/domain";
 
 const labels: Record<string, string> = {
-  ACTIVE: "Активен",
-  REMOVED: "Снят",
-  VACATION: "Отпуск",
-  PROBATION: "Испытательный",
+  ...staffStatusLabels,
   NEW: "Новый",
   IN_PROGRESS: "В работе",
   REVIEW: "На рассмотрении",

@@ -24,7 +24,7 @@ export function AuditLogLive({ initialRows }: { initialRows: AuditLogRow[] }) {
           setError(null);
         }
       } catch {
-        if (mounted) setError("Не удалось обновить audit log.");
+        if (mounted) setError("Не удалось обновить журнал действий.");
       }
     }
 

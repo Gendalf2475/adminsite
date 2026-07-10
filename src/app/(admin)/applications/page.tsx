@@ -5,8 +5,10 @@ import { formatDateTime } from "@/lib/utils";
 import { getLatestGoogleFormsSyncLog } from "@/services/google-forms.service";
 import { listApplications } from "@/services/application.service";
 import { mapApplicationRow } from "@/services/view-models";
+import { requirePagePermission } from "@/lib/auth";
 
 export default async function ApplicationsPage() {
+  await requirePagePermission("applications.view");
   const [applications, latestSync] = await Promise.all([listApplications(), getLatestGoogleFormsSyncLog()]);
   const rows = applications.map(mapApplicationRow);
   const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/integrations/google-forms/webhook`;

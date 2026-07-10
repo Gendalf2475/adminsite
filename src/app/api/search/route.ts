@@ -46,7 +46,6 @@ async function searchStaff(query: string): Promise<GlobalSearchResult[]> {
         { telegramId: contains(query) },
         { discordUsername: contains(query) },
         { currentLuckPermsGroup: contains(query) },
-        { projectPosition: contains(query) },
       ],
     },
     orderBy: [{ status: "asc" }, { assignedAt: "desc" }],
@@ -57,7 +56,7 @@ async function searchStaff(query: string): Promise<GlobalSearchResult[]> {
     type: "staff",
     id: row.id,
     title: row.username,
-    subtitle: `${row.currentLuckPermsGroup} · ${row.projectPosition}`,
+    subtitle: row.currentLuckPermsGroup,
     href: `/staff/${row.id}`,
     status: row.status,
   }));

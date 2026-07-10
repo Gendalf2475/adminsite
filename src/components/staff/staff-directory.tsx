@@ -11,6 +11,7 @@ import { FilterBar } from "@/components/shared/filter-bar";
 import { SearchInput } from "@/components/shared/search-input";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Input } from "@/components/ui/input";
+import { SelectField } from "@/components/ui/select-field";
 import type { StaffRow, StaffStatus } from "@/types/domain";
 import { formatDateTime } from "@/lib/utils";
 
@@ -24,10 +25,17 @@ const filterOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: "REMOVED", label: "Снятые" },
 ];
 
-const selectClassName =
-  "h-10 w-full rounded-full border border-white/15 bg-white/[.07] px-4 text-sm text-white outline-none transition focus:border-fuchsia-300/50 focus:ring-4 focus:ring-fuchsia-400/10";
-
-export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows: StaffRow[]; luckPermsReady: boolean; luckPermsGroups: string[] }) {
+export function StaffDirectory({
+  rows,
+  luckPermsReady,
+  luckPermsGroups,
+  canCreate,
+}: {
+  rows: StaffRow[];
+  luckPermsReady: boolean;
+  luckPermsGroups: string[];
+  canCreate: boolean;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
@@ -39,7 +47,6 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
     telegramId: "",
     discordUsername: "",
     currentLuckPermsGroup: luckPermsGroups[0] ?? "",
-    projectPosition: "",
   });
 
   const filteredRows = useMemo(() => {
@@ -47,7 +54,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
     return rows.filter((row) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
-        [row.username, row.currentLuckPermsGroup, row.projectPosition, row.telegramId ?? ""]
+        [row.username, row.currentLuckPermsGroup, row.telegramId ?? ""]
           .join(" ")
           .toLowerCase()
           .includes(normalizedQuery);
@@ -68,7 +75,6 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
       ),
     },
     { key: "group", header: "LuckPerms", render: (row) => <span className="font-bold text-white">{row.currentLuckPermsGroup}</span> },
-    { key: "position", header: "Должность", render: (row) => row.projectPosition },
     { key: "status", header: "Статус", render: (row) => <StatusBadge value={row.status} /> },
     { key: "assigned", header: "Назначен", render: (row) => formatDateTime(row.assignedAt) },
   ];
@@ -78,7 +84,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
       setCreateError("Добавление будет доступно после подключения LuckPerms.");
       return;
     }
-    if (!form.username.trim() || !form.currentLuckPermsGroup.trim() || !form.projectPosition.trim()) return;
+    if (!form.username.trim() || !form.currentLuckPermsGroup.trim()) return;
     setCreatePending(true);
     setCreateError(null);
     const response = await fetch("/api/staff", {
@@ -89,7 +95,6 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
         telegramId: form.telegramId.trim() || undefined,
         discordUsername: form.discordUsername.trim() || undefined,
         currentLuckPermsGroup: form.currentLuckPermsGroup.trim(),
-        projectPosition: form.projectPosition.trim(),
       }),
     });
 
@@ -97,7 +102,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
       const result = await response.json().catch(() => null);
       setCreateError(result?.error ?? "Не удалось добавить сотрудника.");
     } else {
-      setForm({ username: "", telegramId: "", discordUsername: "", currentLuckPermsGroup: luckPermsGroups[0] ?? "", projectPosition: "" });
+      setForm({ username: "", telegramId: "", discordUsername: "", currentLuckPermsGroup: luckPermsGroups[0] ?? "" });
       setShowCreate(false);
       router.refresh();
     }
@@ -115,7 +120,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
           <Button
             variant="primary"
             onClick={() => setShowCreate((current) => !current)}
-            disabled={!luckPermsReady}
+            disabled={!luckPermsReady || !canCreate}
             title={luckPermsReady ? undefined : "Будет доступно после подключения LuckPerms"}
           >
             <Plus size={16} />
@@ -134,11 +139,11 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
             <Input value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="Ник" />
             <Input value={form.telegramId} onChange={(event) => setForm((current) => ({ ...current, telegramId: event.target.value }))} placeholder="Telegram ID" />
             <Input value={form.discordUsername} onChange={(event) => setForm((current) => ({ ...current, discordUsername: event.target.value }))} placeholder="Discord username" />
-            <select
+            <SelectField
               value={form.currentLuckPermsGroup}
               onChange={(event) => setForm((current) => ({ ...current, currentLuckPermsGroup: event.target.value }))}
-              className={selectClassName}
               disabled={!luckPermsReady}
+              aria-label="Ранг"
             >
               {luckPermsGroups.length === 0 ? (
                 <option value="" className="bg-[#130d23] text-white">
@@ -150,8 +155,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
                   {group}
                 </option>
               ))}
-            </select>
-            <Input value={form.projectPosition} onChange={(event) => setForm((current) => ({ ...current, projectPosition: event.target.value }))} placeholder="Должность" />
+            </SelectField>
             {createError ? <p className="text-sm text-red-100 md:col-span-2 xl:col-span-3">{createError}</p> : null}
             <div className="flex gap-2 md:col-span-2 xl:col-span-3">
               <Button type="button" variant="primary" onClick={createStaff} disabled={createPending}>

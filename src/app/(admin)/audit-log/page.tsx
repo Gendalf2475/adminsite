@@ -1,24 +1,15 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { AuditLogLive } from "@/components/audit/audit-log-live";
-import { prisma } from "@/lib/prisma";
-import { mapAuditLogRow } from "@/services/view-models";
+import { requirePagePermission } from "@/lib/auth";
+import { listAuditLogRows } from "@/services/audit-log.service";
 
 export default async function AuditLogPage() {
-  const rows = (
-    await prisma.auditLog.findMany({
-      include: { actor: true },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    })
-  ).map(mapAuditLogRow);
+  await requirePagePermission("audit.view");
+  const rows = await listAuditLogRows();
 
   return (
     <>
-      <PageHeader
-        eyebrow="Audit"
-        title="Audit Log"
-        description="Все важные действия backend пишет с actor, entity, old/new values и metadata."
-      />
+      <PageHeader eyebrow="Безопасность" title="Журнал действий" />
       <AuditLogLive initialRows={rows} />
     </>
   );

@@ -6,16 +6,16 @@ describe("RBAC permissions", () => {
   it("combines rank and duty permissions without duplicates", () => {
     const roles: RoleSummary[] = [
       {
-        id: "role-admin",
-        key: "admin",
-        name: "Admin",
+        id: "role-moder",
+        key: "moder",
+        name: "Модератор",
         kind: "STAFF_RANK",
         permissions: ["staff.view", "tickets.view", "tickets.reply"],
       },
       {
-        id: "role-support",
-        key: "support",
-        name: "Support",
+        id: "role-duty-support",
+        key: "duty_support",
+        name: "Техподдержка",
         kind: "DUTY",
         permissions: ["tickets.view", "tickets.close", "tickets.assign"],
       },

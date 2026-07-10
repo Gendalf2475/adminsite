@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, ShieldCheck, UserX } from "lucide-react";
+import { Save, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SelectField } from "@/components/ui/select-field";
+import { STAFF_STATUSES, staffStatusLabels } from "@/config/staff";
 import type { StaffRow, StaffStatus } from "@/types/domain";
-
-const statuses: StaffStatus[] = ["ACTIVE", "PROBATION", "VACATION", "REMOVED"];
-const selectClassName =
-  "h-10 w-full rounded-full border border-white/15 bg-white/[.07] px-4 text-sm text-white outline-none transition focus:border-fuchsia-300/50 focus:ring-4 focus:ring-fuchsia-400/10";
 
 function resolveInitialGroup(staff: StaffRow, groups: string[]) {
   const pending = staff.pendingLuckPermsGroup ?? "";
@@ -18,52 +16,49 @@ function resolveInitialGroup(staff: StaffRow, groups: string[]) {
   return groups[0] ?? "";
 }
 
-export function StaffActions({ staff, luckPermsReady, luckPermsGroups }: { staff: StaffRow; luckPermsReady: boolean; luckPermsGroups: string[] }) {
+export function StaffActions({
+  staff,
+  luckPermsReady,
+  luckPermsGroups,
+  editable,
+  canEditRank,
+  canEditDuty,
+}: {
+  staff: StaffRow;
+  luckPermsReady: boolean;
+  luckPermsGroups: string[];
+  editable: boolean;
+  canEditRank: boolean;
+  canEditDuty: boolean;
+}) {
   const router = useRouter();
   const [form, setForm] = useState({
-    projectPosition: staff.projectPosition,
     status: staff.status,
     telegramId: staff.telegramId ?? "",
     discordUsername: staff.discordUsername ?? "",
-    notes: staff.notes ?? "",
   });
   const [group, setGroup] = useState(resolveInitialGroup(staff, luckPermsGroups));
-  const [pending, setPending] = useState<"save" | "group" | "remove" | null>(null);
+  const duty = staff.duties[0];
+  const [dutyMode, setDutyMode] = useState(duty?.mode ?? "INHERIT");
+  const [pending, setPending] = useState<"save" | "remove" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function saveDetails() {
+    if (!editable) return;
     setPending("save");
     setError(null);
     const response = await fetch(`/api/staff/${staff.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        projectPosition: form.projectPosition.trim(),
         status: form.status,
         telegramId: form.telegramId.trim() || null,
         discordUsername: form.discordUsername.trim() || null,
-        notes: form.notes.trim(),
+        currentLuckPermsGroup: group,
+        dutyMode: canEditDuty ? dutyMode : undefined,
       }),
     });
     await finish(response, "Не удалось сохранить сотрудника.");
-    setPending(null);
-  }
-
-  async function changeGroup() {
-    if (!luckPermsReady) {
-      setError("Смена группы будет доступна после подключения LuckPerms.");
-      return;
-    }
-    const nextGroup = group.trim();
-    if (!nextGroup) return;
-    setPending("group");
-    setError(null);
-    const response = await fetch(`/api/staff/${staff.id}/change-group`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ group: nextGroup }),
-    });
-    await finish(response, "Не удалось поставить команду LuckPerms в очередь.");
     setPending(null);
   }
 
@@ -85,65 +80,62 @@ export function StaffActions({ staff, luckPermsReady, luckPermsGroups }: { staff
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[.04] p-4">
+    <div className="space-y-4 rounded-lg border border-white/10 bg-white/[.04] p-4">
       <div className="grid gap-3 md:grid-cols-2">
-        <Input value={form.projectPosition} onChange={(event) => setForm((current) => ({ ...current, projectPosition: event.target.value }))} placeholder="Должность" />
-        <select
-          value={form.status}
-          onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as StaffStatus }))}
-          className={selectClassName}
+        <SelectField
+          value={group}
+          onChange={(event) => setGroup(event.target.value)}
+          disabled={!editable || !canEditRank || !luckPermsReady}
+          aria-label="Ранг"
         >
-          {statuses.map((status) => (
-            <option key={status} value={status} className="bg-[#130d23] text-white">
-              {status}
-            </option>
-          ))}
-        </select>
-        <Input value={form.telegramId} onChange={(event) => setForm((current) => ({ ...current, telegramId: event.target.value }))} placeholder="Telegram ID" />
-        <Input value={form.discordUsername} onChange={(event) => setForm((current) => ({ ...current, discordUsername: event.target.value }))} placeholder="Discord username" />
-        <Input value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Заметки" />
-        <Button type="button" variant="primary" onClick={saveDetails} disabled={pending !== null}>
-          <Save size={16} />
-          {pending === "save" ? "Сохранение..." : "Сохранить"}
-        </Button>
-      </div>
-
-      <div className="flex flex-col gap-3 md:flex-row">
-        <select value={group} onChange={(event) => setGroup(event.target.value)} className={selectClassName} disabled={!luckPermsReady}>
-          {luckPermsGroups.length === 0 ? (
-            <option value="" className="bg-[#130d23] text-white">
-              Нет настроенных групп
-            </option>
-          ) : null}
           {luckPermsGroups.map((option) => (
             <option key={option} value={option} className="bg-[#130d23] text-white">
               {option}
             </option>
           ))}
-        </select>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={changeGroup}
-          disabled={pending !== null || !group.trim() || !luckPermsReady}
-          title={luckPermsReady ? undefined : "Будет доступно после подключения LuckPerms"}
+        </SelectField>
+        <SelectField
+          value={form.status}
+          onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as StaffStatus }))}
+          disabled={!editable}
+          aria-label="Статус"
         >
-          <ShieldCheck size={16} />
-          {pending === "group" ? "Очередь..." : "Сменить группу"}
+          {STAFF_STATUSES.map((status) => (
+            <option key={status} value={status} className="bg-[#130d23] text-white">
+              {staffStatusLabels[status]}
+            </option>
+          ))}
+        </SelectField>
+        <Input value={form.telegramId} onChange={(event) => setForm((current) => ({ ...current, telegramId: event.target.value }))} placeholder="Telegram ID" disabled={!editable} />
+        <Input value={form.discordUsername} onChange={(event) => setForm((current) => ({ ...current, discordUsername: event.target.value }))} placeholder="Discord username" disabled={!editable} />
+      </div>
+
+      {duty ? (
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase text-[var(--text-faint)]">Допзанятость</p>
+          <SelectField value={dutyMode} onChange={(event) => setDutyMode(event.target.value as typeof dutyMode)} disabled={!editable || !canEditDuty} aria-label={duty.name}>
+            <option value="INHERIT" className="bg-[#130d23] text-white">По роли ({duty.defaultEnabled ? "включено" : "выключено"})</option>
+            <option value="ENABLED" className="bg-[#130d23] text-white">{duty.name}: включено лично</option>
+            <option value="DISABLED" className="bg-[#130d23] text-white">{duty.name}: отключено лично</option>
+          </SelectField>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" variant="primary" onClick={saveDetails} disabled={pending !== null || !editable || !group.trim()}>
+          <Save size={16} />
+          {pending === "save" ? "Сохранение..." : "Сохранить"}
         </Button>
-        <Button type="button" variant="danger" onClick={removeStaff} disabled={pending !== null || staff.status === "REMOVED"}>
+        <Button type="button" variant="danger" onClick={removeStaff} disabled={pending !== null || !editable || staff.status === "REMOVED"}>
           <UserX size={16} />
           {pending === "remove" ? "Снятие..." : "Снять"}
         </Button>
       </div>
 
-      {!luckPermsReady ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[.04] p-3 text-sm text-[var(--text-muted)]">
-          Смена LuckPerms-группы будет доступна после подключения Minecraft-плагина.
-        </div>
-      ) : null}
+      {!editable ? <div className="rounded-lg border border-white/10 bg-white/[.04] p-3 text-sm text-[var(--text-muted)]">У вас нет права изменять этого сотрудника.</div> : null}
+      {!luckPermsReady ? <div className="rounded-lg border border-white/10 bg-white/[.04] p-3 text-sm text-[var(--text-muted)]">Связь с Minecraft временно недоступна.</div> : null}
 
-      {error ? <div className="rounded-2xl border border-red-300/20 bg-red-500/10 p-3 text-sm text-red-100">{error}</div> : null}
+      {error ? <div className="rounded-lg border border-red-300/20 bg-red-500/10 p-3 text-sm text-red-100">{error}</div> : null}
     </div>
   );
 }

@@ -45,6 +45,7 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
     value: number;
     caption: string;
     icon: LucideIcon;
+    visible: boolean;
   }> = [
     {
       href: "/staff",
@@ -52,6 +53,7 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
       value: summary.metrics.activeStaff,
       caption: "Сотрудники со статусом active",
       icon: Users,
+      visible: summary.visibility.staff,
     },
     {
       href: "/applications",
@@ -59,6 +61,7 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
       value: summary.metrics.newApplications,
       caption: "Ожидают первичного разбора",
       icon: ClipboardList,
+      visible: summary.visibility.applications,
     },
     {
       href: "/applications",
@@ -66,6 +69,7 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
       value: summary.metrics.inWorkApplications,
       caption: "Назначены или на рассмотрении",
       icon: ShieldCheck,
+      visible: summary.visibility.applications,
     },
     {
       href: "/tickets",
@@ -73,6 +77,7 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
       value: summary.metrics.openTickets,
       caption: "Telegram и Discord обращения",
       icon: LifeBuoy,
+      visible: summary.visibility.tickets,
     },
   ];
 
@@ -90,14 +95,15 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
       </div>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metricCards.map((card) => (
+        {metricCards.filter((card) => card.visible).map((card) => (
           <Link key={card.title} href={card.href} className="block rounded-2xl transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300/70">
             <StatCard title={card.title} value={card.value} caption={card.caption} icon={card.icon} />
           </Link>
         ))}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
+      {summary.visibility.audit || summary.visibility.integrations ? <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
+        {summary.visibility.audit ? (
         <Card>
           <CardHeader>
             <CardTitle>Последние действия администрации</CardTitle>
@@ -110,7 +116,7 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-white">{row.action}</p>
                     <p className="text-xs text-[var(--text-faint)]">
-                      {row.actor} · {row.entityType}
+                      {row.actor} · {row.entityType} · {row.entity}
                     </p>
                   </div>
                   <p className="shrink-0 text-xs text-[var(--text-muted)]">{formatDateTime(row.createdAt)}</p>
@@ -121,7 +127,9 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
             )}
           </CardContent>
         </Card>
+        ) : null}
 
+        {summary.visibility.integrations ? (
         <Card>
           <CardHeader>
             <CardTitle>Статус интеграций</CardTitle>
@@ -143,9 +151,11 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
             ))}
           </CardContent>
         </Card>
-      </section>
+        ) : null}
+      </section> : null}
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      {summary.visibility.applications || summary.visibility.tickets ? <section className="grid gap-4 xl:grid-cols-2">
+        {summary.visibility.applications ? (
         <Card>
           <CardHeader>
             <CardTitle>Очередь заявок</CardTitle>
@@ -166,6 +176,8 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
             )}
           </CardContent>
         </Card>
+        ) : null}
+        {summary.visibility.tickets ? (
         <Card>
           <CardHeader>
             <CardTitle>Тикеты поддержки</CardTitle>
@@ -188,7 +200,8 @@ export function DashboardLive({ initialSummary }: { initialSummary: DashboardSum
             )}
           </CardContent>
         </Card>
-      </section>
+        ) : null}
+      </section> : null}
     </>
   );
 }
