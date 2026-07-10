@@ -51,7 +51,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
           .join(" ")
           .toLowerCase()
           .includes(normalizedQuery);
-      const matchesStatus = status === "ALL" || row.status === status;
+      const matchesStatus = status === "ALL" ? row.status !== "REMOVED" : row.status === status;
       return matchesQuery && matchesStatus;
     });
   }, [query, rows, status]);

@@ -14,7 +14,6 @@ export default async function StaffPage() {
       <PageHeader
         eyebrow="Персонал"
         title="Управление составом"
-        description="Сотрудники, их роли на проекте, группы LuckPerms, статусы и будущая синхронизация с Minecraft-плагином."
       />
       <StaffDirectory rows={rows} luckPermsReady={luckPermsReady} luckPermsGroups={luckPermsGroups} />
     </>

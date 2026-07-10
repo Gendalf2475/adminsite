@@ -6,7 +6,7 @@ export function PageHeader({
 }: {
   eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
   actions?: React.ReactNode;
 }) {
   return (
@@ -14,7 +14,7 @@ export function PageHeader({
       <div>
         {eyebrow ? <p className="text-xs font-extrabold uppercase tracking-[.18em] text-fuchsia-200">{eyebrow}</p> : null}
         <h1 className="mt-2 font-display text-3xl font-semibold text-white md:text-4xl">{title}</h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--text-muted)] md:text-base">{description}</p>
+        {description ? <p className="mt-2 max-w-3xl text-sm text-[var(--text-muted)] md:text-base">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </div>
