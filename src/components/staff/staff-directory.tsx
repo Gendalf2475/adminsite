@@ -36,7 +36,6 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
   const [createError, setCreateError] = useState<string | null>(null);
   const [form, setForm] = useState({
     username: "",
-    uuid: "",
     telegramId: "",
     discordUsername: "",
     currentLuckPermsGroup: luckPermsGroups[0] ?? "",
@@ -48,7 +47,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
     return rows.filter((row) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
-        [row.username, row.uuid, row.currentLuckPermsGroup, row.projectPosition, row.telegramId ?? ""]
+        [row.username, row.currentLuckPermsGroup, row.projectPosition, row.telegramId ?? ""]
           .join(" ")
           .toLowerCase()
           .includes(normalizedQuery);
@@ -64,7 +63,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
       render: (row) => (
         <div>
           <p className="font-bold text-white">{row.username}</p>
-          <p className="text-xs text-[var(--text-faint)]">{row.uuid ?? "UUID не указан"}</p>
+          <p className="text-xs text-[var(--text-faint)]">Выдача ранга по нику</p>
         </div>
       ),
     },
@@ -87,7 +86,6 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         username: form.username.trim(),
-        uuid: form.uuid.trim() || undefined,
         telegramId: form.telegramId.trim() || undefined,
         discordUsername: form.discordUsername.trim() || undefined,
         currentLuckPermsGroup: form.currentLuckPermsGroup.trim(),
@@ -99,7 +97,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
       const result = await response.json().catch(() => null);
       setCreateError(result?.error ?? "Не удалось добавить сотрудника.");
     } else {
-      setForm({ username: "", uuid: "", telegramId: "", discordUsername: "", currentLuckPermsGroup: luckPermsGroups[0] ?? "", projectPosition: "" });
+      setForm({ username: "", telegramId: "", discordUsername: "", currentLuckPermsGroup: luckPermsGroups[0] ?? "", projectPosition: "" });
       setShowCreate(false);
       router.refresh();
     }
@@ -111,7 +109,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
       <CardHeader className="flex-col items-stretch gap-4 xl:flex-row xl:items-center">
         <div>
           <CardTitle>Состав администрации</CardTitle>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">Поиск по нику, UUID, группе, должности и Telegram ID.</p>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Поиск по нику, группе, должности и Telegram ID.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -134,7 +132,6 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
         {showCreate ? (
           <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[.04] p-4 md:grid-cols-2 xl:grid-cols-3">
             <Input value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="Ник" />
-            <Input value={form.uuid} onChange={(event) => setForm((current) => ({ ...current, uuid: event.target.value }))} placeholder="UUID" />
             <Input value={form.telegramId} onChange={(event) => setForm((current) => ({ ...current, telegramId: event.target.value }))} placeholder="Telegram ID" />
             <Input value={form.discordUsername} onChange={(event) => setForm((current) => ({ ...current, discordUsername: event.target.value }))} placeholder="Discord username" />
             <select
@@ -167,7 +164,7 @@ export function StaffDirectory({ rows, luckPermsReady, luckPermsGroups }: { rows
           </div>
         ) : null}
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <SearchInput value={query} onChange={setQuery} placeholder="Ник, UUID, группа, Telegram ID" />
+          <SearchInput value={query} onChange={setQuery} placeholder="Ник, группа, Telegram ID" />
           <FilterBar value={status} options={filterOptions} onChange={setStatus} />
         </div>
         {filteredRows.length > 0 ? (

@@ -19,7 +19,6 @@ export async function getStaffMember(id: string) {
 
 export async function createStaffMember(input: {
   username: string;
-  uuid?: string;
   telegramId?: string;
   discordUsername?: string;
   currentLuckPermsGroup: string;
@@ -29,7 +28,6 @@ export async function createStaffMember(input: {
   const staff = await prisma.staffMember.create({
     data: {
       username: input.username,
-      uuid: input.uuid,
       telegramId: input.telegramId,
       discordUsername: input.discordUsername,
       currentLuckPermsGroup: input.currentLuckPermsGroup,
@@ -43,7 +41,6 @@ export async function createStaffMember(input: {
   const command = await queueLuckPermsGroupChange({
     staffMemberId: staff.id,
     username: staff.username,
-    uuid: staff.uuid,
     group: input.currentLuckPermsGroup,
     requestedById: input.assignedById,
   });
@@ -114,7 +111,6 @@ export async function changeStaffLuckPermsGroup(id: string, group: string, actor
   const command = await queueLuckPermsGroupChange({
     staffMemberId: staff.id,
     username: staff.username,
-    uuid: staff.uuid,
     group,
     requestedById: actorUserId,
   });
@@ -142,7 +138,6 @@ export async function changeStaffLuckPermsGroup(id: string, group: string, actor
 
 export type MinecraftStaffSyncInput = {
   username: string;
-  uuid?: string | null;
   telegramId?: string | null;
   discordUsername?: string | null;
   currentLuckPermsGroup: string;
@@ -161,7 +156,6 @@ export async function syncStaffFromMinecraft(input: { staff: MinecraftStaffSyncI
       where: { username: row.username },
       create: {
         username: row.username,
-        uuid: normalizeNullable(row.uuid),
         telegramId: normalizeNullable(row.telegramId),
         discordUsername: normalizeNullable(row.discordUsername),
         currentLuckPermsGroup: row.currentLuckPermsGroup,
@@ -169,7 +163,6 @@ export async function syncStaffFromMinecraft(input: { staff: MinecraftStaffSyncI
         status: row.status ?? StaffStatus.ACTIVE,
       },
       update: {
-        uuid: normalizeNullable(row.uuid),
         telegramId: normalizeNullable(row.telegramId),
         discordUsername: normalizeNullable(row.discordUsername),
         currentLuckPermsGroup: row.currentLuckPermsGroup,

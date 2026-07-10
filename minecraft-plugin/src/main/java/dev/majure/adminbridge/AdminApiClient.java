@@ -3,7 +3,6 @@ package dev.majure.adminbridge;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -69,7 +68,6 @@ public final class AdminApiClient {
         for (StaffSyncRow row : rows) {
             JsonObject item = new JsonObject();
             item.addProperty("username", row.username());
-            item.add("uuid", row.uuid() == null ? JsonNull.INSTANCE : gson.toJsonTree(row.uuid()));
             item.addProperty("currentLuckPermsGroup", row.currentLuckPermsGroup());
             item.addProperty("projectPosition", row.projectPosition());
             item.addProperty("status", row.status());
@@ -106,6 +104,6 @@ public final class AdminApiClient {
     public record AdminCommand(String id, String type, JsonObject payload) {
     }
 
-    public record StaffSyncRow(String username, String uuid, String currentLuckPermsGroup, String projectPosition, String status) {
+    public record StaffSyncRow(String username, String currentLuckPermsGroup, String projectPosition, String status) {
     }
 }

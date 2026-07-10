@@ -43,7 +43,6 @@ export function mapStaffRow(staff: StaffForRow): StaffRow {
   return {
     id: staff.id,
     username: staff.username,
-    uuid: staff.uuid,
     telegramId: staff.telegramId,
     discordUsername: staff.discordUsername,
     currentLuckPermsGroup: staff.currentLuckPermsGroup,

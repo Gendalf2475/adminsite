@@ -30,7 +30,6 @@ export type AuthUser = {
 export type StaffRow = {
   id: string;
   username: string;
-  uuid?: string | null;
   telegramId?: string | null;
   discordUsername?: string | null;
   currentLuckPermsGroup: string;

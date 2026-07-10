@@ -40,7 +40,6 @@ export function validateLuckPermsStaffGroup(group: string, groups = getConfigure
 export async function queueLuckPermsGroupChange(input: {
   staffMemberId: string;
   username: string;
-  uuid?: string | null;
   group: string;
   requestedById?: string | null;
 }) {
@@ -50,7 +49,6 @@ export async function queueLuckPermsGroupChange(input: {
     requestedById: input.requestedById,
     payload: {
       username: input.username,
-      uuid: input.uuid,
       group: input.group,
     },
   });

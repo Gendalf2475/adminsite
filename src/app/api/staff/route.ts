@@ -9,7 +9,6 @@ export const runtime = "nodejs";
 
 const createStaffSchema = z.object({
   username: z.string().min(2),
-  uuid: z.string().optional(),
   telegramId: z.string().optional(),
   discordUsername: z.string().optional(),
   currentLuckPermsGroup: z.string().min(2),

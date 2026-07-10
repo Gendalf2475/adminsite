@@ -42,11 +42,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
             <StatusBadge value={staff.status} />
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4">
-                <p className="text-xs font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">UUID</p>
-                <p className="mt-2 break-all text-sm font-bold text-white">{staff.uuid ?? "Не указан"}</p>
-              </div>
+            <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4">
                 <p className="text-xs font-bold uppercase tracking-[.14em] text-[var(--text-faint)]">Назначил</p>
                 <p className="mt-2 text-sm font-bold text-white">{staff.assignedBy}</p>

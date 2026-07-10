@@ -43,7 +43,6 @@ async function searchStaff(query: string): Promise<GlobalSearchResult[]> {
     where: {
       OR: [
         { username: contains(query) },
-        { uuid: contains(query) },
         { telegramId: contains(query) },
         { discordUsername: contains(query) },
         { currentLuckPermsGroup: contains(query) },

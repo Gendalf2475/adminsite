@@ -160,8 +160,8 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
                 return CommandOutcome.failure("Group is not allowed by plugin staffGroups: " + group);
             }
 
-            String username = optionalString(payload, "username");
-            UUID uuid = resolveTargetUuid(optionalString(payload, "uuid"), username);
+            String username = requiredString(payload, "username");
+            UUID uuid = resolveTargetUuid(username);
             User user = await(luckPerms.getUserManager().loadUser(uuid), bridgeConfig.requestTimeout());
 
             for (String oldGroup : bridgeConfig.staffGroups()) {
@@ -175,7 +175,6 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
 
             JsonObject result = new JsonObject();
             result.addProperty("username", username);
-            result.addProperty("uuid", uuid.toString());
             result.addProperty("group", group);
             return CommandOutcome.success(result);
         } catch (Exception exception) {
@@ -183,16 +182,20 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
         }
     }
 
-    private UUID resolveTargetUuid(String uuidText, String username) throws Exception {
-        if (uuidText != null && !uuidText.isBlank()) {
-            return UUID.fromString(uuidText);
-        }
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Command payload must include uuid or username.");
-        }
+    private UUID resolveTargetUuid(String username) throws Exception {
         UUID uuid = await(luckPerms.getUserManager().lookupUniqueId(username), bridgeConfig.requestTimeout());
+        org.bukkit.entity.Player onlinePlayer = Bukkit.getPlayerExact(username);
+        if (uuid == null && onlinePlayer != null) {
+            uuid = onlinePlayer.getUniqueId();
+        }
         if (uuid == null) {
-            throw new IllegalArgumentException("Could not resolve UUID for username: " + username);
+            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(username);
+            if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
+                uuid = offlinePlayer.getUniqueId();
+            }
+        }
+        if (uuid == null) {
+            throw new IllegalArgumentException("Could not resolve LuckPerms user by username: " + username);
         }
         return uuid;
     }
@@ -240,7 +243,6 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
             Optional<String> group = findConfiguredStaffGroup(user);
             group.ifPresent(value -> rows.add(new AdminApiClient.StaffSyncRow(
                     username,
-                    player.getUniqueId().toString(),
                     value,
                     value,
                     "ACTIVE"
