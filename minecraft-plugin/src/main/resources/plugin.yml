@@ -10,7 +10,7 @@ description: Connects MAJURE admin panel staff rank actions to LuckPerms.
 commands:
   majurebridge:
     description: Manage the MAJURE LuckPerms bridge.
-    usage: /majurebridge <reload|sync|poll>
+    usage: /majurebridge <status|reload|sync|poll>
     permission: majure.bridge.admin
 permissions:
   majure.bridge.admin:

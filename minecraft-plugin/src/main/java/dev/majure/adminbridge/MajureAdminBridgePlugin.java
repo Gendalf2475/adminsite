@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.node.NodeType;
-import net.luckperms.api.node.types.InheritanceNode;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
@@ -20,8 +19,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MajureAdminBridgePlugin extends JavaPlugin {
     private static final String MINECRAFT_USERNAME_PATTERN = "^[A-Za-z0-9_]{2,16}$";
@@ -31,6 +30,9 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
     private AdminApiClient apiClient;
     private BukkitTask pollTask;
     private BukkitTask syncTask;
+    private final AtomicBoolean pollInProgress = new AtomicBoolean();
+    private volatile long lastSuccessfulPollAt;
+    private volatile String lastPollError;
 
     @Override
     public void onEnable() {
@@ -48,6 +50,8 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
         }
         scheduleTasks();
         getLogger().info("Majure LuckPerms bridge enabled for " + bridgeConfig.staffGroups().size() + " staff groups.");
+        getLogger().info("Admin URL: " + bridgeConfig.adminBaseUrl() + "; command poll interval: "
+                + bridgeConfig.pollInterval().toSeconds() + " second(s).");
     }
 
     @Override
@@ -81,7 +85,8 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
                 Bukkit.getScheduler().runTaskAsynchronously(this, this::pollCommandsSafely);
                 sender.sendMessage("Majure command poll queued.");
             }
-            default -> sender.sendMessage("Majure bridge is running. Use /" + label + " <reload|sync|poll>.");
+            case "status" -> sendStatus(sender);
+            default -> sender.sendMessage("Use /" + label + " <status|reload|sync|poll>.");
         }
         return true;
     }
@@ -102,7 +107,7 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
 
     private void scheduleTasks() {
         cancelTasks();
-        pollTask = Bukkit.getScheduler().runTaskTimerAsynchronously(this, this::pollCommandsSafely, 100L, bridgeConfig.pollIntervalTicks());
+        pollTask = Bukkit.getScheduler().runTaskTimerAsynchronously(this, this::pollCommandsSafely, 1L, bridgeConfig.pollIntervalTicks());
         syncTask = Bukkit.getScheduler().runTaskTimer(this, this::triggerStaffSync, 200L, bridgeConfig.syncIntervalTicks());
     }
 
@@ -118,15 +123,28 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
     }
 
     private void pollCommandsSafely() {
+        if (!pollInProgress.compareAndSet(false, true)) {
+            return;
+        }
         try {
-            for (AdminApiClient.AdminCommand command : apiClient.pullCommands()) {
+            List<AdminApiClient.AdminCommand> commands = apiClient.pullCommands();
+            lastSuccessfulPollAt = System.currentTimeMillis();
+            lastPollError = null;
+            if (!commands.isEmpty()) {
+                getLogger().info("Pulled " + commands.size() + " command(s) from the admin panel.");
+            }
+            for (AdminApiClient.AdminCommand command : commands) {
                 handleCommand(command);
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            lastPollError = "Polling interrupted";
             getLogger().warning("Command polling was interrupted.");
         } catch (Exception exception) {
-            getLogger().warning("Failed to poll commands: " + exception.getMessage());
+            lastPollError = safeMessage(exception);
+            getLogger().warning("Failed to poll commands: " + lastPollError);
+        } finally {
+            pollInProgress.set(false);
         }
     }
 
@@ -186,12 +204,34 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
     }
 
     private void dispatchLuckPermsCommand(String command) throws Exception {
+        getLogger().info("Executing LuckPerms command: " + command);
         Boolean dispatched = Bukkit.getScheduler()
                 .callSyncMethod(this, () -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command))
                 .get(bridgeConfig.requestTimeout().toMillis(), TimeUnit.MILLISECONDS);
         if (!Boolean.TRUE.equals(dispatched)) {
             throw new IllegalStateException("LuckPerms command was not accepted: " + command);
         }
+    }
+
+    private void sendStatus(CommandSender sender) {
+        sender.sendMessage("Majure bridge: enabled");
+        sender.sendMessage("Admin URL: " + bridgeConfig.adminBaseUrl());
+        sender.sendMessage("Poll interval: " + bridgeConfig.pollInterval().toSeconds() + " second(s)");
+        sender.sendMessage("Staff groups: " + String.join(", ", bridgeConfig.staffGroups()));
+        if (lastSuccessfulPollAt == 0L) {
+            sender.sendMessage("Last successful poll: never");
+        } else {
+            long secondsAgo = Math.max(0L, (System.currentTimeMillis() - lastSuccessfulPollAt) / 1000L);
+            sender.sendMessage("Last successful poll: " + secondsAgo + " second(s) ago");
+        }
+        if (lastPollError != null) {
+            sender.sendMessage("Last poll error: " + lastPollError);
+        }
+    }
+
+    private static String safeMessage(Exception exception) {
+        String message = exception.getMessage();
+        return message == null || message.isBlank() ? exception.getClass().getSimpleName() : message;
     }
 
     private void triggerStaffSync() {

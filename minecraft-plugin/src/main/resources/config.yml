@@ -3,10 +3,13 @@ apiToken: "replace-with-plugin-token"
 serverName: "main"
 
 staffGroups:
-  - owner
-  - admin
-  - moderator
+  - developer
+  - support
+  - st.moder
+  - moder
+  - st.helper
   - helper
+  - junior
 
 pollIntervalSeconds: 1
 syncIntervalSeconds: 300

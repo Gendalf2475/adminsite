@@ -36,15 +36,32 @@ export async function queueMinecraftCommand(input: QueueMinecraftCommandInput) {
 
 export async function pullPendingCommands(limit = 25) {
   const now = new Date();
+  const staleLockCutoff = new Date(now.getTime() - 30_000);
+
   await prisma.minecraftCommandQueue.updateMany({
     where: {
-      status: CommandStatus.PENDING,
+      status: { in: [CommandStatus.PENDING, CommandStatus.PROCESSING] },
       expiresAt: { lte: now },
     },
     data: {
       status: CommandStatus.EXPIRED,
       processedAt: now,
       errorMessage: "Command expired before plugin pickup.",
+    },
+  });
+
+  await prisma.minecraftCommandQueue.updateMany({
+    where: {
+      status: CommandStatus.PROCESSING,
+      AND: [
+        { OR: [{ lockedAt: null }, { lockedAt: { lte: staleLockCutoff } }] },
+        { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+      ],
+    },
+    data: {
+      status: CommandStatus.PENDING,
+      lockedAt: null,
+      errorMessage: null,
     },
   });
 
@@ -65,6 +82,8 @@ export async function pullPendingCommands(limit = 25) {
       status: CommandStatus.PROCESSING,
       lockedAt: now,
       attempts: { increment: 1 },
+      processedAt: null,
+      errorMessage: null,
     },
   });
 

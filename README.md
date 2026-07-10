@@ -35,7 +35,7 @@ OWNER_TELEGRAM_ID="123456789"
 OWNER_TELEGRAM_USERNAME="owner"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 MINECRAFT_PLUGIN_API_TOKEN="replace-with-plugin-token"
-LUCKPERMS_STAFF_GROUPS="owner,admin,moderator,helper"
+LUCKPERMS_STAFF_GROUPS="developer,support,st.moder,moder,st.helper,helper,junior"
 GOOGLE_FORMS_WEBHOOK_SECRET="replace-with-google-forms-webhook-secret"
 DISCORD_ENABLED="false"
 DISCORD_BOT_TOKEN=""
@@ -148,7 +148,7 @@ cd minecraft-plugin
 ./gradlew build
 ```
 
-Install `build/libs/MajureLuckPermsBridge-0.1.0.jar` on the Paper server with LuckPerms installed, then set the generated plugin `config.yml` `apiToken` to the same value as `MINECRAFT_PLUGIN_API_TOKEN`.
+Install `build/libs/MajureLuckPermsBridge-0.2.0.jar` on the Paper server with LuckPerms installed, then set the generated plugin `config.yml` `apiToken` to the same value as `MINECRAFT_PLUGIN_API_TOKEN`.
 
 ## Support Flow
 

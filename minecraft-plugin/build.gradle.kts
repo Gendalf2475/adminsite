@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.majure"
-version = "0.1.0"
+version = "0.2.0"
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT")
