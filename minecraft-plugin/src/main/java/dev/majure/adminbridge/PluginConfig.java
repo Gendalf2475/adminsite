@@ -25,7 +25,7 @@ public record PluginConfig(
                 trim(config.getString("apiToken", "")),
                 trim(config.getString("serverName", "main")),
                 normalizeGroups(config.getStringList("staffGroups")),
-                seconds(config.getLong("pollIntervalSeconds", 10), 1),
+                seconds(config.getLong("pollIntervalSeconds", 1), 1),
                 seconds(config.getLong("syncIntervalSeconds", 300), 10),
                 seconds(config.getLong("requestTimeoutSeconds", 10), 1)
         );

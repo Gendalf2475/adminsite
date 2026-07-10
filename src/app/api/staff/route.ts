@@ -8,7 +8,7 @@ import { isLuckPermsIntegrationConfigured, validateLuckPermsStaffGroup } from "@
 export const runtime = "nodejs";
 
 const createStaffSchema = z.object({
-  username: z.string().min(2),
+  username: z.string().regex(/^[A-Za-z0-9_]{2,16}$/, "Use a valid Minecraft nickname"),
   telegramId: z.string().optional(),
   discordUsername: z.string().optional(),
   currentLuckPermsGroup: z.string().min(2),

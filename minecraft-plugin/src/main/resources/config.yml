@@ -8,6 +8,6 @@ staffGroups:
   - moderator
   - helper
 
-pollIntervalSeconds: 10
+pollIntervalSeconds: 1
 syncIntervalSeconds: 300
 requestTimeoutSeconds: 10

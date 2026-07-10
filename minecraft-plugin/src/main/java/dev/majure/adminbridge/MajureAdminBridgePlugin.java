@@ -14,7 +14,6 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,6 +24,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 public final class MajureAdminBridgePlugin extends JavaPlugin {
+    private static final String MINECRAFT_USERNAME_PATTERN = "^[A-Za-z0-9_]{2,16}$";
+
     private LuckPerms luckPerms;
     private PluginConfig bridgeConfig;
     private AdminApiClient apiClient;
@@ -161,17 +162,10 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
             }
 
             String username = requiredString(payload, "username");
-            UUID uuid = resolveTargetUuid(username);
-            User user = await(luckPerms.getUserManager().loadUser(uuid), bridgeConfig.requestTimeout());
-
-            for (String oldGroup : bridgeConfig.staffGroups()) {
-                if (!oldGroup.equals(group)) {
-                    user.data().remove(InheritanceNode.builder(oldGroup).build());
-                }
+            if (!username.matches(MINECRAFT_USERNAME_PATTERN)) {
+                return CommandOutcome.failure("Invalid Minecraft username: " + username);
             }
-            user.data().add(InheritanceNode.builder(group).build());
-            setPrimaryGroupIfSupported(user, group);
-            await(luckPerms.getUserManager().saveUser(user), bridgeConfig.requestTimeout());
+            replaceStaffGroup(username, group);
 
             JsonObject result = new JsonObject();
             result.addProperty("username", username);
@@ -182,31 +176,21 @@ public final class MajureAdminBridgePlugin extends JavaPlugin {
         }
     }
 
-    private UUID resolveTargetUuid(String username) throws Exception {
-        UUID uuid = await(luckPerms.getUserManager().lookupUniqueId(username), bridgeConfig.requestTimeout());
-        org.bukkit.entity.Player onlinePlayer = Bukkit.getPlayerExact(username);
-        if (uuid == null && onlinePlayer != null) {
-            uuid = onlinePlayer.getUniqueId();
-        }
-        if (uuid == null) {
-            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(username);
-            if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
-                uuid = offlinePlayer.getUniqueId();
+    private void replaceStaffGroup(String username, String group) throws Exception {
+        for (String staffGroup : bridgeConfig.staffGroups()) {
+            if (!staffGroup.equals(group)) {
+                dispatchLuckPermsCommand("lp user " + username + " parent remove " + staffGroup);
             }
         }
-        if (uuid == null) {
-            throw new IllegalArgumentException("Could not resolve LuckPerms user by username: " + username);
-        }
-        return uuid;
+        dispatchLuckPermsCommand("lp user " + username + " parent add " + group);
     }
 
-    private void setPrimaryGroupIfSupported(User user, String group) {
-        try {
-            user.getClass().getMethod("setPrimaryGroup", String.class).invoke(user, group);
-        } catch (NoSuchMethodException ignored) {
-            getLogger().fine("LuckPerms User#setPrimaryGroup is not available; inheritance node was still applied.");
-        } catch (IllegalAccessException | InvocationTargetException exception) {
-            getLogger().fine("Could not set LuckPerms primary group: " + exception.getMessage());
+    private void dispatchLuckPermsCommand(String command) throws Exception {
+        Boolean dispatched = Bukkit.getScheduler()
+                .callSyncMethod(this, () -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command))
+                .get(bridgeConfig.requestTimeout().toMillis(), TimeUnit.MILLISECONDS);
+        if (!Boolean.TRUE.equals(dispatched)) {
+            throw new IllegalStateException("LuckPerms command was not accepted: " + command);
         }
     }
 

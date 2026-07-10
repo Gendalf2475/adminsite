@@ -16,6 +16,7 @@ The plugin jar is created in `build/libs/`.
 2. Start the server once so `plugins/MajureLuckPermsBridge/config.yml` is created.
 3. Set `adminBaseUrl`, `apiToken`, `serverName`, and `staffGroups`.
 4. Keep `staffGroups` aligned with the site `.env` value `LUCKPERMS_STAFF_GROUPS`.
-5. Restart the server or run `/majurebridge reload`.
+5. Set `pollIntervalSeconds: 1` if rank changes should be picked up almost immediately.
+6. Restart the server or run `/majurebridge reload`.
 
 The plugin pulls queued rank changes from the site, applies the selected LuckPerms group, and posts the execution result back to the site.
